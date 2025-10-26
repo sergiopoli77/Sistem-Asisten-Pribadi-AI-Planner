@@ -1,27 +1,42 @@
-var express = require('express');
-var router = express.Router();
-const gemini = require('../services/geminiService');
+// backend/routes/ai.js
+const express = require('express');
+const router = express.Router();
+const geminiService = require('../services/geminiService');
 
 // POST /api/ai/generate-schedule
-// Body: { prompt: string, username?: string }
-router.post('/generate-schedule', async function (req, res, next) {
-  const { prompt, username } = req.body || {};
-  if (!prompt) return res.status(400).json({ error: 'prompt required' });
+router.post('/generate-schedule', async (req, res) => {
+  const { prompt } = req.body || {};
+  if (!prompt || typeof prompt !== 'string') {
+    return res.status(400).json({ error: 'prompt is required in request body' });
+  }
 
   try {
-    // Basic protection: limit prompt size
-    if (typeof prompt === 'string' && prompt.length > 5000) {
-      return res.status(400).json({ error: 'prompt too long' });
-    }
+    const ai = await geminiService.generateText(prompt, {
+      temperature: 0.3,
+      maxOutputTokens: 700,
+    });
 
-    const aiResp = await gemini.generateText(prompt, { maxTokens: 600 });
-
-    // Caller can post-process aiResp into schedule items and save to DB
-    res.json({ ok: true, ai: aiResp });
+    return res.json({ ai });
   } catch (err) {
-    console.error('AI route error:', err.message || err);
-    res.status(500).json({ error: 'AI service error', detail: err.message });
+    console.error('[ai.generate-schedule] error', err.message || err);
+    return res.status(500).json({ error: 'AI service error', details: err.message });
   }
+});
+
+// GET /api/ai/models
+router.get('/models', async (req, res) => {
+  try {
+    const list = await geminiService.listModels({ timeout: 10000 });
+    return res.json({ models: list });
+  } catch (err) {
+    console.error('[ai.list-models] error', err.message || err);
+    return res.status(500).json({ error: 'Models list error', details: err.message });
+  }
+});
+
+// GET /api/ai/ping
+router.get('/ping', (req, res) => {
+  res.json({ ok: true, uptime: process.uptime() });
 });
 
 module.exports = router;

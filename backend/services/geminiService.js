@@ -1,34 +1,79 @@
-const axios = require('axios');
+// backend/services/geminiService.js
+const axios = require("axios");
 
-// Simple wrapper for Google Generative Language (Gemini) HTTP API.
-// Requires these env vars:
-// - GOOGLE_API_KEY
-// - GEMINI_MODEL (optional)
-
-const MODEL = process.env.GEMINI_MODEL || 'models/text-bison-001';
-const API_KEY = process.env.GOOGLE_API_KEY;
+const API_KEY = process.env.GEMINI_API_KEY;
+const MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash"; // default aman
 
 if (!API_KEY) {
-  console.warn('[geminiService] GOOGLE_API_KEY is not set in environment. Requests will fail until set.');
+  console.warn(
+    "[geminiService] ⚠️ GEMINI_API_KEY is not set in environment. Requests will fail until configured."
+  );
 }
 
+// Base URL Gemini API
+const BASE_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${API_KEY}`;
+
+/**
+ * Generate text from Gemini
+ * @param {string} prompt
+ * @param {object} options
+ * @returns {Promise<{text: string, raw: object}>}
+ */
 async function generateText(prompt, options = {}) {
-  if (!prompt) throw new Error('prompt is required');
-  const url = `https://generativelanguage.googleapis.com/v1beta2/${MODEL}:generateText?key=${API_KEY}`;
+  if (!prompt) throw new Error("prompt is required");
+  if (!API_KEY) throw new Error("GEMINI_API_KEY not configured");
 
   const body = {
-    prompt: { text: prompt },
-    temperature: typeof options.temperature === 'number' ? options.temperature : 0.2,
-    maxOutputTokens: options.maxTokens || 512,
+    contents: [
+      {
+        role: "user",
+        parts: [{ text: prompt }],
+      },
+    ],
+    generationConfig: {
+      temperature: options.temperature ?? 0.6,
+      maxOutputTokens: options.maxOutputTokens ?? 700,
+    },
   };
 
-  const resp = await axios.post(url, body, {
-    headers: { 'Content-Type': 'application/json' },
-    timeout: options.timeout || 30000,
-  });
+  try {
+    console.log(`[GeminiService] 🧠 Generating text with model: ${MODEL}`);
+    console.log(`[GeminiService] Prompt:`, prompt);
 
-  // Return raw response for caller to adapt/post-process
-  return resp.data;
+    const response = await axios.post(BASE_URL, body, {
+      headers: { "Content-Type": "application/json" },
+      timeout: options.timeout || 20000,
+    });
+
+    const data = response.data;
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+
+    console.log("[GeminiService] ✅ Response received");
+    return { text, raw: data };
+  } catch (error) {
+    if (error.response) {
+      console.error(
+        `[GeminiService] ❌ API error ${error.response.status}:`,
+        JSON.stringify(error.response.data, null, 2)
+      );
+    } else {
+      console.error("[GeminiService] ❌ Error:", error.message);
+    }
+    throw error;
+  }
 }
 
-module.exports = { generateText };
+/**
+ * List all available Gemini models
+ */
+async function listModels() {
+  if (!API_KEY) throw new Error("GEMINI_API_KEY not configured");
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${API_KEY}`;
+  console.log("[GeminiService] 🔍 Listing models...");
+
+  const response = await axios.get(url, { timeout: 10000 });
+  return response.data;
+}
+
+module.exports = { generateText, listModels };
