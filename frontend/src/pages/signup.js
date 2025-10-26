@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import '../assets/Signup.css';
 import { Brain, Mail, Lock, Phone, User, Sparkles, ArrowRight, CheckCircle } from 'lucide-react';
+import { db } from '../config/firebase';
+import { ref, set, get } from 'firebase/database';
 
 const Signup = () => {
   const [nama, setNama] = useState('');
@@ -13,10 +15,15 @@ const Signup = () => {
   const [success, setSuccess] = useState('');
   const [focusedField, setFocusedField] = useState('');
 
-  const handleSubmit = () => {
+  const normalizeKey = (name) => {
+    return name.trim().toLowerCase().replace(/\s+/g, '');
+  };
+
+  const handleSubmit = async () => {
     setError('');
     setSuccess('');
 
+    // 🔍 Validasi dasar
     if (!nama || !email || !phone || !password || !confirmPassword) {
       setError('Semua field wajib diisi!');
       return;
@@ -45,13 +52,37 @@ const Signup = () => {
 
     setLoading(true);
 
-    // Simulasi register (nanti bisa diganti Firebase logic)
-    setTimeout(() => {
-      setSuccess('Akun berhasil dibuat! Redirecting ke login...');
+    try {
+      const userKey = normalizeKey(nama);
+      const userRef = ref(db, `users/${userKey}`);
+      const snapshot = await get(userRef);
+
+      if (snapshot.exists()) {
+        setError('Nama pengguna sudah terdaftar!');
+        setLoading(false);
+        return;
+      }
+
+      // ✅ Simpan data ke Firebase
+      await set(userRef, {
+        nama: nama.trim(),
+        email: email.trim(),
+        nomor: phone.trim(),
+        password: password.trim(),
+        jenisKelamin: 'Belum diisi',
+        createdAt: Date.now(),
+      });
+
+      setSuccess('Akun berhasil dibuat! Mengarahkan ke login...');
       setTimeout(() => {
         window.location.href = '/login';
       }, 1500);
-    }, 2000);
+    } catch (err) {
+      console.error('Signup error:', err);
+      setError('Gagal menyimpan data ke Firebase. Cek koneksi Anda.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -191,8 +222,7 @@ const Signup = () => {
 
           {/* Login link */}
           <div className="login-link">
-            Sudah punya akun?{' '}
-            <a href="/login">Masuk di sini →</a>
+            Sudah punya akun? <a href="/login">Masuk di sini →</a>
           </div>
         </div>
 

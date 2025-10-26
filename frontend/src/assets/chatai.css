@@ -1,0 +1,579 @@
+/* Askep AI Plan Styles */
+
+/* AI Status Banner */
+.ai-status-banner {
+  background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  color: white;
+}
+
+.ai-status-content {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.ai-icon {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ai-status-text h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.ai-status-text p {
+  margin: 0;
+  opacity: 0.9;
+  font-size: 0.95rem;
+}
+
+.ai-capabilities {
+  display: flex;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.capability-tag {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+/* Tab Navigation */
+.tab-navigation {
+  display: flex;
+  background: #f8fafc;
+  border-radius: 8px;
+  padding: 4px;
+  margin-bottom: 2rem;
+  gap: 4px;
+}
+
+.tab-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.tab-button:hover:not(:disabled) {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.tab-button.active {
+  background: white;
+  color: #1e40af;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.tab-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Assessment Section */
+.assessment-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.form-section {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  border: 1px solid #e2e8f0;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 1.5rem 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.section-title svg {
+  color: #3b82f6;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group:last-child {
+  margin-bottom: 0;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: #374151;
+}
+
+.form-input, .form-select, .form-textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-input:focus, .form-select:focus, .form-textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.form-textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+/* Patient Info Card */
+.patient-info-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-top: 0.5rem;
+}
+
+.patient-details h4 {
+  margin: 0 0 0.5rem 0;
+  color: #1e293b;
+  font-weight: 600;
+}
+
+.patient-details p {
+  margin: 0.25rem 0;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+/* Vital Signs Grid */
+.vital-signs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Generate Section */
+.generate-section {
+  text-align: center;
+  padding: 2rem;
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  border-radius: 12px;
+  border: 2px dashed #cbd5e1;
+}
+
+.btn-ai-generate {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 2rem;
+  background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  min-width: 250px;
+}
+
+.btn-ai-generate:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
+}
+
+.btn-ai-generate:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.generate-note {
+  margin: 1rem 0 0 0;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+/* Loading Spinner */
+.loading-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top: 2px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Plan Section */
+.plan-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.plan-header {
+  display: flex;
+  justify-content: between;
+  align-items: flex-start;
+  background: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.plan-info h3 {
+  margin: 0 0 0.5rem 0;
+  color: #1e293b;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.plan-info p {
+  margin: 0.25rem 0;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.ai-confidence {
+  margin-left: auto;
+}
+
+.confidence-score {
+  text-align: center;
+  padding: 0.75rem;
+  background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+  color: white;
+  border-radius: 8px;
+}
+
+.confidence-score .score {
+  display: block;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.confidence-score .label {
+  display: block;
+  font-size: 0.75rem;
+  opacity: 0.9;
+}
+
+/* Plan Section Content */
+.plan-section-content {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  border: 1px solid #e2e8f0;
+}
+
+.plan-section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 1.5rem 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #1e293b;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid #f1f5f9;
+}
+
+.plan-section-title svg {
+  color: #3b82f6;
+}
+
+/* Diagnosis Cards */
+.diagnoses-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.diagnosis-card {
+  padding: 1.25rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fafbfc;
+}
+
+.diagnosis-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.diagnosis-header h5 {
+  margin: 0;
+  color: #1e293b;
+  font-size: 1rem;
+  font-weight: 600;
+  flex: 1;
+}
+
+.priority-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.priority-badge.tinggi {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.priority-badge.sedang {
+  background: #fefbf2;
+  color: #d97706;
+  border: 1px solid #fed7aa;
+}
+
+.priority-badge.rendah {
+  background: #f0fdf4;
+  color: #059669;
+  border: 1px solid #bbf7d0;
+}
+
+.diagnosis-details p {
+  margin: 0.5rem 0;
+  color: #4b5563;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+/* Intervention Cards */
+.interventions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.intervention-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 1.25rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fafbfc;
+}
+
+.intervention-content {
+  flex: 1;
+}
+
+.intervention-content h6 {
+  margin: 0 0 0.75rem 0;
+  color: #1e293b;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.rationale {
+  margin: 0.5rem 0;
+  color: #4b5563;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.intervention-meta {
+  margin-top: 0.75rem;
+}
+
+.frequency {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  background: #e0f2fe;
+  color: #0369a1;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.intervention-actions {
+  margin-left: 1rem;
+}
+
+.btn-small {
+  padding: 0.5rem 1rem;
+  font-size: 0.8rem;
+  border: 1px solid #d1d5db;
+  background: white;
+  color: #374151;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-small:hover {
+  background: #f9fafb;
+  border-color: #9ca3af;
+}
+
+/* Outcome Cards */
+.outcomes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.outcome-card {
+  padding: 1.25rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fafbfc;
+}
+
+.outcome-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.outcome-header h6 {
+  margin: 0;
+  color: #1e293b;
+  font-size: 0.95rem;
+  font-weight: 600;
+  flex: 1;
+}
+
+.timeframe {
+  padding: 0.25rem 0.75rem;
+  background: #f0f9ff;
+  color: #0369a1;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.outcome-indicators p {
+  margin: 0 0 0.5rem 0;
+  color: #374151;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.outcome-indicators ul {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.outcome-indicators li {
+  margin: 0.25rem 0;
+  color: #4b5563;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .ai-status-content {
+    flex-direction: column;
+    text-align: center;
+    gap: 1rem;
+  }
+
+  .ai-capabilities {
+    margin-left: 0;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .tab-navigation {
+    flex-direction: column;
+  }
+
+  .tab-button {
+    justify-content: center;
+  }
+
+  .vital-signs-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .plan-header {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .ai-confidence {
+    margin-left: 0;
+    align-self: stretch;
+  }
+
+  .diagnosis-header,
+  .outcome-header {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .intervention-card {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .intervention-actions {
+    margin-left: 0;
+    align-self: flex-start;
+  }
+}
+
+@media (max-width: 480px) {
+  .form-section {
+    padding: 1rem;
+  }
+
+  .plan-section-content {
+    padding: 1rem;
+  }
+
+  .btn-ai-generate {
+    width: 100%;
+    min-width: auto;
+  }
+
+  .generate-section {
+    padding: 1.5rem 1rem;
+  }
+}
