@@ -5,13 +5,30 @@ const geminiService = require('../services/geminiService');
 
 // POST /api/ai/generate-schedule
 router.post('/generate-schedule', async (req, res) => {
-  const { prompt } = req.body || {};
+  const { prompt, history } = req.body || {};
   if (!prompt || typeof prompt !== 'string') {
     return res.status(400).json({ error: 'prompt is required in request body' });
   }
 
+  // Build a combined prompt including recent conversation history so the model
+  // can respond with proper context. History is expected to be an array of
+  // { sender: 'user'|'ai', text: '...' } objects. We'll format it into a simple
+  // chat transcript followed by the new user prompt.
+  let combinedPrompt = 'Anda adalah AI Planner Assistant yang membantu membuat jadwal dan menjawab pertanyaan pengguna. Gunakan konteks percakapan sebelumnya untuk menjawab dengan tepat.\n\n';
+
+  if (Array.isArray(history) && history.length) {
+    combinedPrompt += 'Percakapan sebelumnya:\n';
+    history.forEach((m) => {
+      const who = (m.sender === 'user') ? 'User' : 'Assistant';
+      combinedPrompt += `${who}: ${m.text}\n`;
+    });
+    combinedPrompt += '\n';
+  }
+
+  combinedPrompt += `User: ${prompt}\nAssistant:`;
+
   try {
-    const ai = await geminiService.generateText(prompt, {
+    const ai = await geminiService.generateText(combinedPrompt, {
       temperature: 0.3,
       maxOutputTokens: 700,
     });
