@@ -117,6 +117,42 @@
   backdrop-filter: blur(10px);
 }
 
+/* Clear chat button - match header stat/action styling */
+.btn-clear-chat {
+  padding: 0.45rem 0.85rem;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: white;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.btn-clear-chat:hover {
+  background: rgba(255,255,255,0.18);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(0,0,0,0.12);
+}
+
+.btn-clear-chat:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* stat-action tweaks to reduce extra vertical padding under small action buttons */
+.stat-item.stat-action {
+  padding: 0.35rem 0.6rem;
+  min-width: 52px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* .btn-new-chat removed — New Chat button was removed from the UI */
+
 .stat-icon {
   font-size: 1.25rem;
 }

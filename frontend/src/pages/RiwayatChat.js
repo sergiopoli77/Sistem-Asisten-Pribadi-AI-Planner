@@ -69,6 +69,20 @@ const RiwayatChat = () => {
     setEditingChatId(null);
   };
 
+  // Continue chat: dispatch event so Dashboard can switch to ChatAI with this chat
+  const handleContinueChat = (chat, e) => {
+    if (e) e.stopPropagation();
+    try {
+      // dispatch custom event
+      window.dispatchEvent(new CustomEvent('continueChat', { detail: chat }));
+      // also set a fallback in localStorage in case other tab needs it
+      localStorage.setItem('continueChat', JSON.stringify(chat));
+    } catch (err) {
+      console.warn('Unable to dispatch continueChat event, using localStorage fallback', err);
+      localStorage.setItem('continueChat', JSON.stringify(chat));
+    }
+  };
+
   // Handle delete chat
   const handleDeleteChat = (id, e) => {
     if (e) e.stopPropagation();
@@ -309,6 +323,16 @@ const RiwayatChat = () => {
                 </div>
 
                 <div className="chat-actions">
+                  <button
+                    className="action-btn continue"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleContinueChat(chat);
+                    }}
+                    title="Lanjutkan percakapan"
+                  >
+                    ▶️
+                  </button>
                   <button
                     className="action-btn edit"
                     onClick={(e) => {

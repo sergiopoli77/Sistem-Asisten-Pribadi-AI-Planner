@@ -1,17 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
 import "../assets/chatai.css";
 import { db } from "../config/firebase";
-import { ref, push, set } from "firebase/database";
+import { ref, push, set, update } from "firebase/database";
 
-const ChatAI = () => {
+const ChatAI = ({ initialChat }) => {
   const [input, setInput] = useState("");
-  const [messages, setMessages] = useState([
-    {
-      sender: "ai",
-      text: "👋 Halo! Saya AI Planner Assistant. Saya siap membantu Anda mengatur jadwal, memberikan rekomendasi waktu produktif, dan menjawab pertanyaan seputar perencanaan kegiatan Anda!",
-      timestamp: new Date().toISOString(),
-    },
-  ]);
+  const [messages, setMessages] = useState([]);
+  const [currentChatId, setCurrentChatId] = useState(null);
   const [isTyping, setIsTyping] = useState(false);
   const [sessionId, setSessionId] = useState(null);
   const chatBoxRef = useRef(null);
@@ -28,145 +23,213 @@ const ChatAI = () => {
 
   // Generate session ID saat mount
   useEffect(() => {
+    // If we have an incoming initialChat (user chose Continue), load it
+    if (initialChat && initialChat.messages && initialChat.messages.length) {
+      setMessages(initialChat.messages);
+      setSessionId(initialChat.sessionId || initialChat.id || `session_${Date.now()}`);
+      setCurrentChatId(initialChat.id || null);
+      return;
+    }
+
+    // otherwise create a new session and show welcome
     const newSessionId = `session_${Date.now()}`;
     setSessionId(newSessionId);
-  }, []);
+    setMessages([
+      {
+        sender: "ai",
+        text: "👋 Halo! Saya AI Planner Assistant. Saya siap membantu Anda mengatur jadwal, memberikan rekomendasi waktu produktif, dan menjawab pertanyaan seputar perencanaan kegiatan Anda!",
+        timestamp: new Date().toISOString(),
+      },
+    ]);
+  }, [initialChat]);
 
   // Firebase reference untuk chat user
   const chatRef = ref(db, `chats/${username}`);
 
   // Simpan chat ke Firebase
-  const saveChatToFirebase = (newMessages) => {
+  const saveChatToFirebase = async (newMessages) => {
     if (!sessionId) return;
+    // Firebase Realtime Database disallows `undefined` values. Ensure we
+    // remove any undefined properties (or replace them) before writing.
+    const sanitizeForFirebase = (value) => {
+      if (Array.isArray(value)) return value.map(sanitizeForFirebase);
+      if (value && typeof value === "object") {
+        const out = {};
+        Object.keys(value).forEach((k) => {
+          const v = value[k];
+          if (v === undefined) return; // skip undefined properties
+          out[k] = sanitizeForFirebase(v);
+        });
+        return out;
+      }
+      return value;
+    };
+
+    const safeMessages = newMessages.map((m) => sanitizeForFirebase(m));
 
     const chatData = {
       sessionId,
       date: new Date().toISOString(),
-      messages: newMessages,
-      lastMessage: newMessages[newMessages.length - 1].text,
+      messages: safeMessages,
+      lastMessage: safeMessages[safeMessages.length - 1]?.text || "",
     };
+
+    // If continuing an existing chat, update that record instead of pushing a new one
+    try {
+      if (currentChatId) {
+        const existingRef = ref(db, `chats/${username}/${currentChatId}`);
+        // update only messages/date/lastMessage to preserve metadata like title
+        await update(existingRef, {
+          messages: chatData.messages,
+          date: chatData.date,
+          lastMessage: chatData.lastMessage,
+        });
+        return;
+      }
+    } catch (e) {
+      // fall back to push if update fails
+      console.warn('Failed to update existing chat, falling back to push:', e);
+    }
 
     const newChatRef = push(chatRef);
     set(newChatRef, chatData);
   };
 
-  // Handle send message
-  const handleSend = () => {
+  // helper: try extract text from backend AI response
+  const extractTextFromAiResponse = (data) => {
+    if (!data) return '';
+    // if backend returned normalized ai.text
+    if (typeof data.ai === 'string') return data.ai;
+    if (data.ai && typeof data.ai === 'object') {
+      // Common shapes
+      try {
+        // v1 style: candidates -> output -> content -> text
+        const cand = data.ai.candidates?.[0];
+        if (cand) {
+          if (typeof cand === 'string') return cand;
+          const text1 = cand.output?.[0]?.content?.[0]?.text || cand.output?.[0]?.content?.text;
+          if (text1) return text1;
+          const cont = cand.content || cand;
+          if (typeof cont === 'string') return cont;
+        }
+
+        // direct output
+        const out = data.ai.output?.[0]?.content?.text || data.ai.output?.[0]?.content;
+        if (out) return out;
+      } catch (e) {
+        // ignore
+      }
+      // fallback to stringified
+      return JSON.stringify(data.ai);
+    }
+    return '';
+  };
+
+  // parse lines like '⏰ 08:00 - Belajar React (2 jam)' or '08:00 - Activity (30 menit)'
+  const parseSchedulesFromText = (text) => {
+    if (!text) return [];
+    const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    const parsed = [];
+    const timeLineRegex = /(?:.*?)(\d{1,2}:\d{2})\s*[-–—]\s*(.+?)(?:\s*\(([^)]+)\))?$/;
+
+    for (const line of lines) {
+      const m = line.match(timeLineRegex);
+      if (m) {
+        const time = m[1];
+        const activity = m[2].trim();
+        const duration = m[3] ? m[3].trim() : '1 jam';
+        parsed.push({ time, activity, duration, priority: 'Sedang' });
+      }
+    }
+    return parsed;
+  };
+
+  // Handle send message (calls backend AI, falls back to local generator)
+  const handleSend = async () => {
     if (!input.trim()) return;
 
+    const prompt = input.trim();
+
     const userMessage = {
-      sender: "user",
-      text: input.trim(),
+      sender: 'user',
+      text: prompt,
       timestamp: new Date().toISOString(),
     };
 
     const newMessages = [...messages, userMessage];
     setMessages(newMessages);
-    setInput("");
+    setInput('');
     setIsTyping(true);
 
-    // Simulasi delay AI response
-    setTimeout(() => {
-      const aiReply = generateAiResponse(input.trim());
+    // Try backend AI first
+    try {
+      // send last N messages as history so backend AI can use conversation context
+      const HISTORY_LENGTH = 12;
+      const historyToSend = newMessages.slice(-HISTORY_LENGTH).map((m) => ({ sender: m.sender, text: m.text }));
+
+      const resp = await fetch('http://localhost:4000/api/ai/generate-schedule', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, username, history: historyToSend }),
+      });
+
+      if (!resp.ok) throw new Error(`AI service responded ${resp.status}`);
+      const data = await resp.json();
+
+      const aiText = data?.ai?.text || extractTextFromAiResponse(data) || JSON.stringify(data.ai || data);
+      const parsedSchedules = data?.ai?.parsedSchedules?.length ? data.ai.parsedSchedules : parseSchedulesFromText(aiText);
+
+      // Decide whether to auto-add schedules: if parsed schedules exist and the
+      // user's prompt explicitly asked for a study schedule (e.g. "jadwal belajar").
+      const promptLower = prompt.toLowerCase();
+      const requestedStudySchedule = /\bjadwal belajar\b|\bbuat jadwal belajar\b/i.test(promptLower);
+
       const aiMessage = {
-        sender: "ai",
-        text: aiReply.text,
+        sender: 'ai',
+        text: aiText,
         timestamp: new Date().toISOString(),
-        actions: aiReply.actions,
+        // keep actions for manual add only when we did NOT auto-add
+        actions: parsedSchedules.length && !requestedStudySchedule ? ['Tambahkan ke Jadwal'] : [],
+        parsedSchedules,
       };
 
       const finalMessages = [...newMessages, aiMessage];
       setMessages(finalMessages);
       setIsTyping(false);
 
-      // Simpan percakapan ke Firebase
+      // Save chat to Firebase
       saveChatToFirebase(finalMessages);
 
-      // Jika AI generate jadwal, simpan ke schedules
-      if (aiReply.schedules) {
-        saveSchedulesToFirebase(aiReply.schedules);
+      // If it's a study schedule request and we have parsed schedules, auto-save them
+      if (requestedStudySchedule && parsedSchedules.length) {
+        saveSchedulesToFirebase(parsedSchedules);
+        // update the last AI message to include confirmation text
+        const updatedAiText = aiMessage.text + '\n\n✅ Jadwal sudah otomatis ditambahkan ke Jadwal Anda.';
+        const updatedMessages = [...newMessages, { ...aiMessage, text: updatedAiText, actions: [] }];
+        setMessages(updatedMessages);
+        saveChatToFirebase(updatedMessages);
       }
-    }, 1500);
+    } catch (err) {
+        console.warn('AI backend error:', err);
+        const errorText = '⚠️ Maaf, layanan AI sedang bermasalah. Silakan coba lagi beberapa saat.';
+        const aiMessage = {
+          sender: 'ai',
+          text: errorText,
+          timestamp: new Date().toISOString(),
+          actions: [],
+          parsedSchedules: [],
+        };
+
+        const finalMessages = [...newMessages, aiMessage];
+        setMessages(finalMessages);
+        setIsTyping(false);
+        // Save the chat containing the error message so user has context
+        saveChatToFirebase(finalMessages);
+    }
   };
 
   // Generate AI Response dengan konteks lebih baik
-  const generateAiResponse = (message) => {
-    const lower = message.toLowerCase();
-
-    // Jadwal Belajar
-    if (lower.includes("jadwal belajar") || lower.includes("buat jadwal belajar")) {
-      const schedules = [
-        { time: "08:00", duration: "2 jam", activity: "Belajar React & JavaScript", priority: "Tinggi" },
-        { time: "10:30", duration: "30 menit", activity: "Istirahat & Snack", priority: "Rendah" },
-        { time: "11:00", duration: "2 jam", activity: "Praktik Coding Project", priority: "Tinggi" },
-        { time: "14:00", duration: "1 jam", activity: "Review Materi & Catatan", priority: "Sedang" },
-      ];
-
-      return {
-        text: `✅ Sempurna! Saya sudah membuatkan jadwal belajar untuk Anda:\n\n${schedules
-          .map((s) => `⏰ ${s.time} - ${s.activity} (${s.duration})`)
-          .join("\n")}\n\n📅 Jadwal ini sudah otomatis ditambahkan ke daftar kegiatan Anda. Anda bisa melihatnya di menu Jadwal!`,
-        schedules,
-        actions: ["Lihat Jadwal", "Ubah Waktu"],
-      };
-    }
-
-    // Olahraga
-    if (lower.includes("olahraga") || lower.includes("workout")) {
-      const schedules = [
-        { time: "06:00", duration: "45 menit", activity: "Jogging Pagi", priority: "Sedang" },
-        { time: "16:00", duration: "1 jam", activity: "Gym / Home Workout", priority: "Sedang" },
-        { time: "19:00", duration: "30 menit", activity: "Yoga & Stretching", priority: "Rendah" },
-      ];
-
-      return {
-        text: `💪 Bagus! Ini jadwal olahraga yang saya rekomendasikan:\n\n${schedules
-          .map((s) => `⏰ ${s.time} - ${s.activity} (${s.duration})`)
-          .join("\n")}\n\n🏃 Konsistensi adalah kunci! Jadwal sudah ditambahkan untuk Anda.`,
-        schedules,
-      };
-    }
-
-    // Meeting/Rapat
-    if (lower.includes("rapat") || lower.includes("meeting")) {
-      return {
-        text: "📊 Untuk meeting, saya sarankan:\n\n⏰ Pagi (09:00-11:00): Produktivitas tinggi, cocok untuk diskusi strategis\n⏰ Siang (13:00-14:00): Post-lunch meeting, lebih santai\n⏰ Sore (16:00-17:00): Wrap up meeting harian\n\nWaktu mana yang paling cocok untuk Anda?",
-      };
-    }
-
-    // Produktivitas
-    if (lower.includes("produktif") || lower.includes("fokus")) {
-      return {
-        text: "🎯 Tips produktivitas dari AI Planner:\n\n1️⃣ Gunakan teknik Pomodoro (25 menit kerja, 5 menit istirahat)\n2️⃣ Prioritaskan 3 tugas penting setiap hari\n3️⃣ Hindari multitasking\n4️⃣ Blokir waktu untuk deep work\n5️⃣ Istirahat yang cukup!\n\nMau saya buatkan jadwal berbasis Pomodoro?",
-      };
-    }
-
-    // Libur/Break
-    if (lower.includes("libur") || lower.includes("istirahat") || lower.includes("break")) {
-      return {
-        text: "🌴 Istirahat sangat penting! Beberapa ide:\n\n✨ Weekend getaway\n📚 Me-time dengan hobi\n👨‍👩‍👧 Quality time keluarga\n🎮 Gaming & entertainment\n\nSaya akan menandai waktu libur Anda. Kapan Anda ingin istirahat?",
-      };
-    }
-
-    // Terima kasih
-    if (lower.includes("terima kasih") || lower.includes("thanks")) {
-      return {
-        text: "😊 Sama-sama! Senang bisa membantu Anda. Jangan ragu untuk bertanya kapan saja!",
-      };
-
-    }
-    // Bantuan/Help
-    if (lower.includes("bantuan") || lower.includes("help") || lower.includes("bisa apa")) {
-      return {
-        text: "🤖 Saya bisa membantu Anda dengan:\n\n📅 Membuat jadwal kegiatan otomatis\n⏰ Rekomendasi waktu optimal untuk aktivitas\n💡 Tips produktivitas & time management\n📊 Analisis pola kegiatan Anda\n🎯 Prioritas tugas harian\n\nApa yang bisa saya bantu hari ini?",
-      };
-    }
-
-    // Default response
-    return {
-      text: "🤔 Hmm, saya belum sepenuhnya memahami maksud Anda. Bisa dijelaskan lebih detail?\n\nContoh yang bisa saya bantu:\n• \"Buatkan jadwal belajar\"\n• \"Rekomendasi waktu olahraga\"\n• \"Jadwal meeting minggu ini\"\n• \"Tips produktif\"",
-    };
-  };
+  // NOTE: generateAiResponse removed - using pure AI backend. Local fallback responses were removed.
 
   // Simpan jadwal AI ke Firebase
   const saveSchedulesToFirebase = (schedules) => {
@@ -254,6 +317,31 @@ const ChatAI = () => {
             <span className="stat-value">{messages.length}</span>
             <span className="stat-label">Pesan</span>
           </div>
+          {/* New Chat button removed per request */}
+          <div className="stat-item stat-action">
+            <button
+              className="btn-clear-chat"
+              onClick={() => {
+                if (!messages || messages.length === 0) return;
+                const ok = window.confirm('Hapus percakapan saat ini? Ini akan mengosongkan chat pada tampilan.');
+                if (!ok) return;
+                // reset chat locally
+                const newSessionId = `session_${Date.now()}`;
+                setSessionId(newSessionId);
+                setCurrentChatId(null);
+                setMessages([
+                  {
+                    sender: 'ai',
+                    text: '👋 Halo! Saya AI Planner Assistant. Saya siap membantu Anda mengatur jadwal dan menjawab pertanyaan Anda.',
+                    timestamp: new Date().toISOString(),
+                  },
+                ]);
+              }}
+              title="Clear conversation"
+            >
+              Clear
+            </button>
+          </div>
         </div>
       </div>
 
@@ -298,11 +386,33 @@ const ChatAI = () => {
 
                 {msg.actions && (
                   <div className="message-actions">
-                    {msg.actions.map((action, i) => (
-                      <button key={i} className="action-btn">
-                        {action}
-                      </button>
-                    ))}
+                    {msg.actions.map((action, i) => {
+                      if (action === 'Tambahkan ke Jadwal') {
+                        return (
+                          <button
+                            key={i}
+                            className="action-btn"
+                            onClick={() => {
+                              const parsed = msg.parsedSchedules || [];
+                              if (!parsed.length) {
+                                alert('Tidak ada jadwal terdeteksi untuk ditambahkan.');
+                                return;
+                              }
+                              saveSchedulesToFirebase(parsed);
+                              alert('✅ Jadwal berhasil ditambahkan. Cek menu Jadwal.');
+                            }}
+                          >
+                            {action}
+                          </button>
+                        );
+                      }
+
+                      return (
+                        <button key={i} className="action-btn">
+                          {action}
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </div>

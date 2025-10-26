@@ -8,6 +8,7 @@ import Profile from './Profile';
 
 const Dashboard = ({ user, onLogout }) => {
   const [activeMenu, setActiveMenu] = useState('dashboard');
+  const [continueChat, setContinueChat] = useState(null);
   const [totalSchedules, setTotalSchedules] = useState(0);
   const [totalChats, setTotalChats] = useState(0);
   const [remindersCount, setRemindersCount] = useState(0);
@@ -18,6 +19,31 @@ const Dashboard = ({ user, onLogout }) => {
   const [currentUser, setCurrentUser] = useState(null);
 
   useEffect(() => {
+    // listen for continueChat events from RiwayatChat
+    const handler = (e) => {
+      const chat = e.detail;
+      if (chat) {
+        setContinueChat(chat);
+        setActiveMenu('chat');
+      }
+    };
+    window.addEventListener('continueChat', handler);
+
+    // also check localStorage fallback (in case another tab set it)
+    try {
+      const stored = localStorage.getItem('continueChat');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed) {
+          setContinueChat(parsed);
+          setActiveMenu('chat');
+          localStorage.removeItem('continueChat');
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+
     try {
       const u = localStorage.getItem('username');
       if (!u) {
@@ -94,6 +120,7 @@ const Dashboard = ({ user, onLogout }) => {
       return () => {
         unsubSchedules();
         unsubChats();
+        window.removeEventListener('continueChat', handler);
       };
     } catch (e) {
       console.warn('Dashboard data load error:', e);
@@ -270,7 +297,7 @@ const Dashboard = ({ user, onLogout }) => {
       case 'jadwal':
         return <Jadwal />;
       case 'chat':
-        return <ChatAI />;
+        return <ChatAI initialChat={continueChat} />;
       case 'riwayat':
         return <RiwayatChat />;
       case 'profil':
