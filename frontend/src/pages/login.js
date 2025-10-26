@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import '../assets/Login.css';
+import { Brain, Mail, Lock, Sparkles, ArrowRight } from 'lucide-react';
 import { db } from '../config/firebase';
 import { ref, get } from 'firebase/database';
+import '../assets/login.css';
 
 const Login = ({ onLogin }) => {
-  const [role, setRole] = useState('perawat');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [focusedField, setFocusedField] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -15,7 +16,7 @@ const Login = ({ onLogin }) => {
     setError('');
     setLoading(true);
 
-    const name = (username || '').trim();
+    const name = username.trim();
     if (!name || !password) {
       setError('Username dan password wajib diisi!');
       setLoading(false);
@@ -35,7 +36,7 @@ const Login = ({ onLogin }) => {
       let userRecord = null;
       let uid = null;
 
-      // Pencarian username case-insensitive
+      // cari user berdasarkan nama (case-insensitive)
       snap.forEach((child) => {
         const data = child.val();
         if (
@@ -56,89 +57,117 @@ const Login = ({ onLogin }) => {
       // validasi password
       if (String(userRecord.password).trim() === String(password).trim()) {
         const displayName = userRecord.nama || name;
-        const userRole = userRecord.role
-          ? userRecord.role.toLowerCase()
-          : role;
+        const userRole = userRecord.role ? userRecord.role.toLowerCase() : 'user';
 
-        // Kirim ke App.js (pindah ke dashboard)
-        onLogin({ username: displayName, role: userRole, uid });
+        // kirim hasil login ke parent (App.js)
+        if (onLogin) onLogin({ username: displayName, role: userRole, uid });
+        alert(`Login berhasil! Selamat datang, ${displayName}.`);
         setLoading(false);
         return;
       }
 
       setError('Password salah.');
       setLoading(false);
-
     } catch (err) {
       console.error('Login RTDB error:', err);
-      setError('Terjadi error saat verifikasi. Cek koneksi.');
+      setError('Terjadi error saat verifikasi. Cek koneksi Anda.');
       setLoading(false);
     }
   };
 
   return (
-    <div className="login-container">
+    <div className="login-page">
+      {/* Animated background */}
+      <div className="blob blob-left"></div>
+      <div className="blob blob-right"></div>
+
+      {/* Login card */}
       <div className="login-card">
+        {/* Header */}
         <div className="login-header">
-          <div className="medical-icon">
-            <svg width="50" height="50" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 2L13.09 8.26L20 9L13.09 9.74L12 16L10.91 9.74L4 9L10.91 8.26L12 2Z" fill="#00B4D8"/>
-              <circle cx="12" cy="12" r="10" stroke="#0077B6" strokeWidth="2" fill="none"/>
-              <path d="M12 8V16M8 12H16" stroke="white" strokeWidth="2" strokeLinecap="round"/>
-            </svg>
+          <div className="header-icon">
+            <Brain className="brain-icon" strokeWidth={2.5} />
           </div>
-          <h1>Sistem Asuhan Keperawatan</h1>
-          <p>Platform Digital untuk Profesional Kesehatan</p>
+          <h1>AI Planner</h1>
+          <div className="header-subtitle">
+            <Sparkles className="sparkle" />
+            <span>Asisten Pribadi Cerdas Anda</span>
+            <Sparkles className="sparkle" />
+          </div>
         </div>
 
-        <form className="login-form" onSubmit={handleSubmit}>
-          <h2>Masuk ke Akun Anda</h2>
-          {error && <div className="error">{error}</div>}
+        {/* Form */}
+        <form className="login-body" onSubmit={handleSubmit}>
+          <h2>Selamat Datang Kembali! 👋</h2>
+          <p>Masuk untuk mengatur jadwal Anda</p>
 
-          <div className="input-group">
-            <label htmlFor="role">Peran</label>
-            <select
-              id="role"
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-            >
-              <option value="perawat">👩‍⚕️ Perawat</option>
-              <option value="kepala">👨‍💼 Kepala Rumah Sakit</option>
-            </select>
+          {error && <div className="error-box">{error}</div>}
+
+          {/* Username */}
+          <div className="form-group">
+            <label>Username</label>
+            <div className="input-wrapper">
+              <Mail
+                className={`input-icon ${
+                  focusedField === 'username' ? 'focused' : ''
+                }`}
+              />
+              <input
+                type="text"
+                placeholder="Masukkan username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                onFocus={() => setFocusedField('username')}
+                onBlur={() => setFocusedField('')}
+              />
+            </div>
           </div>
 
-          <div className="input-group">
-            <label htmlFor="username">Username</label>
-            <input
-              id="username"
-              type="text"
-              placeholder="Masukkan username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-            />
+          {/* Password */}
+          <div className="form-group">
+            <label>Password</label>
+            <div className="input-wrapper">
+              <Lock
+                className={`input-icon ${
+                  focusedField === 'password' ? 'focused' : ''
+                }`}
+              />
+              <input
+                type="password"
+                placeholder="Masukkan password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onFocus={() => setFocusedField('password')}
+                onBlur={() => setFocusedField('')}
+                onKeyPress={(e) => e.key === 'Enter' && handleSubmit(e)}
+              />
+            </div>
           </div>
 
-          <div className="input-group">
-            <label htmlFor="password">Password</label>
-            <input
-              id="password"
-              type="password"
-              placeholder="Masukkan password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </div>
-
-          <button type="submit" className="login-btn" disabled={loading} aria-busy={loading}>
-            {loading ? 'Memeriksa...' : 'Masuk'}
+          {/* Submit Button */}
+          <button type="submit" className="submit-btn" disabled={loading}>
+            {loading ? (
+              <>
+                <div className="spinner"></div>
+                <span>Memeriksa...</span>
+              </>
+            ) : (
+              <>
+                <span>Masuk</span>
+                <ArrowRight className="arrow-icon" />
+              </>
+            )}
           </button>
-          <div style={{marginTop:12,fontSize:13, textAlign: 'center'}}>
-            Belum punya akun? <a href="/signup">Daftar di sini</a>
+
+          {/* Register link */}
+          <div className="register-link">
+            Belum punya akun? <a href="/signup">Daftar di sini →</a>
           </div>
         </form>
 
+        {/* Footer */}
         <div className="login-footer">
-          <p>© 2025 Sistem Askep Digital</p>
+          <p>© 2025 AI Planner. Semua hak dilindungi.</p>
         </div>
       </div>
     </div>

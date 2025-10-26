@@ -1,125 +1,206 @@
 import React, { useState } from 'react';
 import '../assets/Signup.css';
-import { db } from '../config/firebase';
-import { ref, push, set, get } from 'firebase/database';
+import { Brain, Mail, Lock, Phone, User, Sparkles, ArrowRight, CheckCircle } from 'lucide-react';
 
-const Signup = ({ onRegistered }) => {
+const Signup = () => {
   const [nama, setNama] = useState('');
   const [email, setEmail] = useState('');
-  const [role, setRole] = useState('perawat');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [phone, setPhone] = useState('');
-  const [gender, setGender] = useState('Laki-laki');
-  const [birthdate, setBirthdate] = useState('');
-  const [address, setAddress] = useState('');
-  const [regNumber, setRegNumber] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [focusedField, setFocusedField] = useState('');
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = () => {
     setError('');
     setSuccess('');
-    if (!nama || !password || !email) {
-      setError('Nama, email dan password wajib diisi');
+
+    if (!nama || !email || !phone || !password || !confirmPassword) {
+      setError('Semua field wajib diisi!');
       return;
     }
 
-    if (String(password) !== String(confirmPassword)) {
-      setError('Password dan konfirmasi password tidak cocok');
+    if (password !== confirmPassword) {
+      setError('Password dan konfirmasi password tidak cocok!');
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('Password minimal 6 karakter!');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError('Format email tidak valid!');
+      return;
+    }
+
+    if (phone.length < 10) {
+      setError('Nomor WhatsApp minimal 10 digit!');
       return;
     }
 
     setLoading(true);
-    try {
-      const usersRef = ref(db, 'users');
-      // check uniqueness: nama or email
-      const snap = await get(usersRef);
-      if (snap.exists()) {
-        const all = snap.val();
-        for (const key in all) {
-          const v = all[key];
-          if (v && v.nama && String(v.nama).trim().toLowerCase() === String(nama).trim().toLowerCase()) {
-            setError('Nama sudah terdaftar');
-            setLoading(false);
-            return;
-          }
-          if (v && v.email && String(v.email).trim().toLowerCase() === String(email).trim().toLowerCase()) {
-            setError('Email sudah terdaftar');
-            setLoading(false);
-            return;
-          }
-        }
-      }
 
-      // simple push new user
-      const newRef = push(usersRef);
-      await set(newRef, {
-        nama: nama.trim(),
-        email: String(email).trim(),
-        role: role,
-        password: String(password).trim(),
-        phone: String(phone).trim(),
-        gender: gender,
-        birthdate: birthdate || null,
-        address: address || '',
-        regNumber: regNumber || '',
-        createdAt: Date.now()
-      });
-
-      setSuccess('Akun berhasil dibuat. Anda akan diarahkan ke login...');
+    // Simulasi register (nanti bisa diganti Firebase logic)
+    setTimeout(() => {
+      setSuccess('Akun berhasil dibuat! Redirecting ke login...');
       setTimeout(() => {
-        setLoading(false);
-        if (onRegistered) onRegistered();
-      }, 1200);
-    } catch (err) {
-      console.error('Signup error', err);
-      setError('Gagal membuat akun. Cek koneksi atau konfigurasi RTDB.');
-      setLoading(false);
-    }
+        window.location.href = '/login';
+      }, 1500);
+    }, 2000);
   };
 
   return (
     <div className="signup-container">
-      <form className="signup-card" onSubmit={handleSubmit}>
-        <h2>Daftar Akun Baru</h2>
-        {error && <div className="error">{error}</div>}
-        {success && <div className="success">{success}</div>}
+      {/* Animated Blobs */}
+      <div className="blob blob-left"></div>
+      <div className="blob blob-right"></div>
 
-        <label>Nama</label>
-        <input value={nama} onChange={(e) => setNama(e.target.value)} placeholder="Nama lengkap" />
+      <div className="signup-card">
+        {/* Header */}
+        <div className="signup-header">
+          <div className="icon-box">
+            <Brain className="icon-brain" />
+          </div>
+          <h1>Daftar AI Planner</h1>
+          <div className="subtitle">
+            <Sparkles className="sparkle" />
+            <span>Mulai kelola jadwal dengan AI</span>
+            <Sparkles className="sparkle" />
+          </div>
+        </div>
 
-        <label>Peran</label>
-        <select value={role} onChange={(e) => setRole(e.target.value)}>
-          <option value="perawat">Perawat</option>
-          <option value="kepala">Kepala Rumah Sakit</option>
-        </select>
+        {/* Form Section */}
+        <div className="signup-form">
+          <h2>Buat Akun Baru 🚀</h2>
+          <p>Isi data Anda untuk memulai</p>
 
-        <label>Telepon</label>
-        <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="No. HP" />
+          {error && (
+            <div className="alert error">
+              <div className="dot"></div>
+              {error}
+            </div>
+          )}
 
-        <label>Jenis Kelamin</label>
-        <select value={gender} onChange={(e) => setGender(e.target.value)}>
-          <option value="Laki-laki">Laki-laki</option>
-          <option value="Perempuan">Perempuan</option>
-        </select>
+          {success && (
+            <div className="alert success">
+              <CheckCircle size={18} />
+              {success}
+            </div>
+          )}
 
-        <label>Tanggal Lahir</label>
-        <input type="date" value={birthdate} onChange={(e) => setBirthdate(e.target.value)} />
+          {/* Nama */}
+          <div className="input-group">
+            <label>Nama Lengkap</label>
+            <div className="input-wrapper">
+              <User className={`input-icon ${focusedField === 'nama' ? 'active' : ''}`} />
+              <input
+                type="text"
+                placeholder="Masukkan nama lengkap"
+                value={nama}
+                onChange={(e) => setNama(e.target.value)}
+                onFocus={() => setFocusedField('nama')}
+                onBlur={() => setFocusedField('')}
+              />
+            </div>
+          </div>
 
-        <label>Password</label>
-        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" />
+          {/* Email */}
+          <div className="input-group">
+            <label>Email</label>
+            <div className="input-wrapper">
+              <Mail className={`input-icon ${focusedField === 'email' ? 'active' : ''}`} />
+              <input
+                type="email"
+                placeholder="nama@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                onFocus={() => setFocusedField('email')}
+                onBlur={() => setFocusedField('')}
+              />
+            </div>
+          </div>
 
-        <label>Konfirmasi Password</label>
-        <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Konfirmasi Password" />
+          {/* Phone */}
+          <div className="input-group">
+            <label>Nomor WhatsApp 📱</label>
+            <div className="input-wrapper">
+              <Phone className={`input-icon ${focusedField === 'phone' ? 'active' : ''}`} />
+              <input
+                type="tel"
+                placeholder="08123456789"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value.replace(/[^0-9]/g, ''))}
+                onFocus={() => setFocusedField('phone')}
+                onBlur={() => setFocusedField('')}
+              />
+            </div>
+            <p className="note">Untuk notifikasi reminder via WhatsApp</p>
+          </div>
 
+          {/* Password */}
+          <div className="input-group">
+            <label>Password</label>
+            <div className="input-wrapper">
+              <Lock className={`input-icon ${focusedField === 'password' ? 'active' : ''}`} />
+              <input
+                type="password"
+                placeholder="Minimal 6 karakter"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onFocus={() => setFocusedField('password')}
+                onBlur={() => setFocusedField('')}
+              />
+            </div>
+          </div>
 
-        <button type="submit" disabled={loading}>{loading ? 'Membuat...' : 'Daftar'}</button>
+          {/* Confirm Password */}
+          <div className="input-group">
+            <label>Konfirmasi Password</label>
+            <div className="input-wrapper">
+              <Lock className={`input-icon ${focusedField === 'confirm' ? 'active' : ''}`} />
+              <input
+                type="password"
+                placeholder="Ulangi password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                onFocus={() => setFocusedField('confirm')}
+                onBlur={() => setFocusedField('')}
+              />
+            </div>
+          </div>
 
-        <div className="small-note">Sudah punya akun? <a href="/">Masuk</a></div>
-      </form>
+          {/* Submit Button */}
+          <button className="signup-btn" onClick={handleSubmit} disabled={loading}>
+            {loading ? (
+              <>
+                <div className="loader"></div>
+                Membuat Akun...
+              </>
+            ) : (
+              <>
+                <span>Daftar Sekarang</span>
+                <ArrowRight size={18} />
+              </>
+            )}
+          </button>
+
+          {/* Login link */}
+          <div className="login-link">
+            Sudah punya akun?{' '}
+            <a href="/login">Masuk di sini →</a>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="signup-footer">
+          <p>© 2025 AI Planner. Semua hak dilindungi.</p>
+        </div>
+      </div>
     </div>
   );
 };
