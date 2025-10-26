@@ -7,14 +7,34 @@ const Jadwal = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [loading, setLoading] = useState(true);
+  // currentUser disimpan di state agar hook dipanggil konsisten
+  const [currentUser, setCurrentUser] = useState(null);
 
-  // Ganti ini sesuai user login
-  const currentUser = "sergiopoli"; 
+  // Ambil username dari localStorage saat mount
+  useEffect(() => {
+    try {
+      const u = localStorage.getItem("username");
+      if (u) {
+        setCurrentUser(u);
+      } else {
+        // jika tidak ada user, redirect ke login
+        if (typeof window !== "undefined") {
+          alert("Kamu belum login! Silakan masuk terlebih dahulu.");
+          window.location.href = "/login";
+        }
+      }
+    } catch (e) {
+      console.warn("Gagal membaca localStorage untuk username:", e);
+      if (typeof window !== "undefined") window.location.href = "/login";
+    }
+  }, []);
 
   const db = getDatabase();
 
   // Ambil data dari Firebase
   useEffect(() => {
+    if (!currentUser) return;
+
     const scheduleRef = ref(db, `schedules/${currentUser}`);
     const unsubscribe = onValue(scheduleRef, (snapshot) => {
       const data = snapshot.val();

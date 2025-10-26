@@ -59,6 +59,16 @@ const Login = ({ onLogin }) => {
         const displayName = userRecord.nama || name;
         const userRole = userRecord.role ? userRecord.role.toLowerCase() : 'user';
 
+        // simpan data singkat ke localStorage agar protected pages yang
+        // membaca localStorage (mis. `Profile.js`, `ChatAI.js`) mengenali user
+        try {
+          localStorage.setItem('username', uid); // uid digunakan sebagai key di RTDB: users/{uid}
+          localStorage.setItem('displayName', displayName);
+          localStorage.setItem('role', userRole);
+        } catch (e) {
+          console.warn('Gagal menyimpan ke localStorage:', e);
+        }
+
         // kirim hasil login ke parent (App.js)
         if (onLogin) onLogin({ username: displayName, role: userRole, uid });
         alert(`Login berhasil! Selamat datang, ${displayName}.`);

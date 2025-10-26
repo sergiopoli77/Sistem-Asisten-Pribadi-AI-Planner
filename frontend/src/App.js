@@ -9,6 +9,16 @@ function App() {
 
   const handleLogout = () => {
     setUser(null);
+    // bersihkan localStorage saat logout agar halaman yang memeriksa localStorage tidak salah deteksi
+    try {
+      localStorage.removeItem('username');
+      localStorage.removeItem('displayName');
+      localStorage.removeItem('role');
+    } catch (e) {
+      console.warn('Gagal membersihkan localStorage saat logout:', e);
+    }
+    // redirect ke login untuk memastikan state ter-reset
+    if (typeof window !== 'undefined') window.location.href = '/login';
   };
 
   // jika user belum login, tampilkan login
