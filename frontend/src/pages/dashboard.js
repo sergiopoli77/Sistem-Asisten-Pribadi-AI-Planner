@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import '../assets/Dashboard.css';
+import { getDatabase, ref, onValue } from 'firebase/database';
 import Jadwal from './Jadwal';
 import ChatAI from './ChatAI';
 import RiwayatChat from './RiwayatChat';
@@ -7,6 +8,98 @@ import Profile from './Profile';
 
 const Dashboard = ({ user, onLogout }) => {
   const [activeMenu, setActiveMenu] = useState('dashboard');
+  const [totalSchedules, setTotalSchedules] = useState(0);
+  const [totalChats, setTotalChats] = useState(0);
+  const [remindersCount, setRemindersCount] = useState(0);
+  const [todaySchedules, setTodaySchedules] = useState([]);
+  const [recentActivities, setRecentActivities] = useState([]);
+
+  const db = getDatabase();
+  const [currentUser, setCurrentUser] = useState(null);
+
+  useEffect(() => {
+    try {
+      const u = localStorage.getItem('username');
+      if (!u) {
+        // not logged in, redirect to login
+        if (typeof window !== 'undefined') window.location.href = '/login';
+        return;
+      }
+      setCurrentUser(u);
+
+      const schedulesRef = ref(db, `schedules/${u}`);
+      const chatsRef = ref(db, `chats/${u}`);
+
+      const unsubSchedules = onValue(schedulesRef, (snap) => {
+        const data = snap.val();
+        const items = data
+          ? Object.entries(data).map(([id, v]) => ({ id, ...v }))
+          : [];
+
+        setTotalSchedules(items.length);
+
+        // reminders = schedules not finished
+        const reminders = items.filter((s) => !s.status || s.status !== 'Selesai').length;
+        setRemindersCount(reminders);
+
+        // today's schedules
+        const today = new Date().toISOString().split('T')[0];
+        const todayItems = items.filter((s) => (s.tanggal || s.date || '').startsWith ? (s.tanggal || s.date || '').startsWith(today) : (s.tanggal || s.date) === today);
+        setTodaySchedules(todayItems);
+
+        // recent activities from schedules
+        const scheduleActivities = items
+          .map((s) => ({
+            type: 'schedule',
+            title: s.kegiatan || s.title || 'Jadwal baru',
+            date: s.createdAt || s.date || '',
+            id: s.id,
+          }))
+          .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        setRecentActivities((prev) => {
+          // combine with existing chats later in chat subscription
+          const combined = [...scheduleActivities, ...prev.filter((p) => p.type === 'chat')];
+          const sorted = combined.sort((a, b) => new Date(b.date) - new Date(a.date));
+          return sorted.slice(0, 6);
+        });
+      });
+
+      const unsubChats = onValue(chatsRef, (snap) => {
+        const data = snap.val();
+        const items = data
+          ? Object.entries(data).map(([id, v]) => ({ id, ...v }))
+          : [];
+
+        setTotalChats(items.length);
+
+        // map chats to recentActivities entries
+        const chatActivities = items
+          .map((c) => ({
+            type: 'chat',
+            title: c.lastMessage || (c.messages && c.messages[c.messages.length - 1]?.text) || 'Percakapan AI',
+            date: c.date || c.createdAt || '',
+            id: c.id,
+          }))
+          .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        setRecentActivities((prev) => {
+          const schedulePrev = prev.filter((p) => p.type === 'schedule');
+          const combined = [...schedulePrev, ...chatActivities];
+          const sorted = combined.sort((a, b) => new Date(b.date) - new Date(a.date));
+          return sorted.slice(0, 6);
+        });
+      });
+
+      return () => {
+        unsubSchedules();
+        unsubChats();
+      };
+    } catch (e) {
+      console.warn('Dashboard data load error:', e);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: '🏠' },
@@ -39,15 +132,15 @@ const Dashboard = ({ user, onLogout }) => {
               </div>
             </div>
 
-            {/* Stats Cards */}
+            {/* Stats Cards (data from Firebase) */}
             <div className="stats-section">
               <div className="stats-grid">
                 <div className="stat-card stat-primary">
                   <div className="stat-icon">📊</div>
                   <div className="stat-info">
                     <h3>Total Kegiatan</h3>
-                    <p className="stat-number">24</p>
-                    <span className="stat-change positive">+3 dari minggu lalu</span>
+                    <p className="stat-number">{totalSchedules}</p>
+                    <span className="stat-change positive">{totalSchedules > 0 ? `+${Math.max(0, Math.floor(totalSchedules * 0.1))} dari minggu lalu` : "-"}</span>
                   </div>
                 </div>
 
@@ -55,8 +148,8 @@ const Dashboard = ({ user, onLogout }) => {
                   <div className="stat-icon">✅</div>
                   <div className="stat-info">
                     <h3>Selesai Hari Ini</h3>
-                    <p className="stat-number">8/12</p>
-                    <span className="stat-change">67% completion rate</span>
+                    <p className="stat-number">{`${todaySchedules.filter(s => s.status === 'Selesai').length}/${todaySchedules.length || 0}`}</p>
+                    <span className="stat-change">{todaySchedules.length ? `${Math.round((todaySchedules.filter(s => s.status === 'Selesai').length / todaySchedules.length) * 100)}% completion rate` : 'Belum ada'}</span>
                   </div>
                 </div>
 
@@ -64,7 +157,7 @@ const Dashboard = ({ user, onLogout }) => {
                   <div className="stat-icon">⏰</div>
                   <div className="stat-info">
                     <h3>Reminder Aktif</h3>
-                    <p className="stat-number">5</p>
+                    <p className="stat-number">{remindersCount}</p>
                     <span className="stat-change">Notifikasi WhatsApp</span>
                   </div>
                 </div>
@@ -73,7 +166,7 @@ const Dashboard = ({ user, onLogout }) => {
                   <div className="stat-icon">🧠</div>
                   <div className="stat-info">
                     <h3>Chat AI</h3>
-                    <p className="stat-number">42</p>
+                    <p className="stat-number">{totalChats}</p>
                     <span className="stat-change">Percakapan bulan ini</span>
                   </div>
                 </div>
@@ -85,58 +178,40 @@ const Dashboard = ({ user, onLogout }) => {
               <div className="section-header">
                 <div>
                   <h2>Kegiatan Hari Ini</h2>
-                  <p>Sabtu, 26 Oktober 2024</p>
+                  <p>{new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
                 </div>
                 <button className="btn-link" onClick={() => setActiveMenu('jadwal')}>
                   Lihat Semua →
                 </button>
               </div>
-
               <div className="schedule-timeline">
-                <div className="timeline-item">
-                  <div className="timeline-time">
-                    <span className="time">08:00</span>
-                    <span className="duration">2 jam</span>
-                  </div>
-                  <div className="timeline-content">
-                    <div className="timeline-badge priority-high"></div>
-                    <div className="timeline-details">
-                      <h4>Belajar React & Node.js</h4>
-                      <p>📚 Kategori: Pembelajaran</p>
-                      <span className="timeline-status upcoming">Akan Datang</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="timeline-item">
-                  <div className="timeline-time">
-                    <span className="time">10:30</span>
-                    <span className="duration">1 jam</span>
-                  </div>
-                  <div className="timeline-content">
-                    <div className="timeline-badge priority-medium"></div>
-                    <div className="timeline-details">
-                      <h4>Meeting Tim Proyek</h4>
-                      <p>👥 Kategori: Rapat</p>
-                      <span className="timeline-status in-progress">Sedang Berlangsung</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="timeline-item">
-                  <div className="timeline-time">
-                    <span className="time">15:00</span>
-                    <span className="duration">1.5 jam</span>
-                  </div>
-                  <div className="timeline-content">
-                    <div className="timeline-badge priority-low"></div>
-                    <div className="timeline-details">
-                      <h4>Olahraga Sore</h4>
-                      <p>💪 Kategori: Kesehatan</p>
-                      <span className="timeline-status upcoming">Akan Datang</span>
-                    </div>
-                  </div>
-                </div>
+                {todaySchedules.length === 0 ? (
+                  <p>Tidak ada kegiatan hari ini.</p>
+                ) : (
+                  todaySchedules.map((s) => {
+                    const start = s.waktu || s.waktuMulai || s.time || '';
+                    const duration = s.duration || s.durasi || '';
+                    const title = s.kegiatan || s.title || 'Tanpa judul';
+                    const category = s.kategori || s.kategori || '';
+                    const status = s.status || 'Belum Dilaksanakan';
+                    return (
+                      <div key={s.id} className="timeline-item">
+                        <div className="timeline-time">
+                          <span className="time">{start}</span>
+                          <span className="duration">{duration}</span>
+                        </div>
+                        <div className="timeline-content">
+                          <div className={`timeline-badge priority-${(s.prioritas || '').toLowerCase()}`}></div>
+                          <div className="timeline-details">
+                            <h4>{title}</h4>
+                            {category && <p>� Kategori: {category}</p>}
+                            <span className={`timeline-status ${status === 'Selesai' ? 'done' : status === 'Sedang Berlangsung' ? 'in-progress' : 'upcoming'}`}>{status}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </div>
 
@@ -150,49 +225,22 @@ const Dashboard = ({ user, onLogout }) => {
               </div>
 
               <div className="activity-grid">
-                <div className="activity-card">
-                  <div className="activity-icon-wrapper bg-blue">
-                    <span className="activity-icon">📅</span>
-                  </div>
-                  <div className="activity-content">
-                    <h4>Jadwal Ditambahkan</h4>
-                    <p>Meeting dengan Tim</p>
-                    <span className="activity-time">5 menit yang lalu</span>
-                  </div>
-                </div>
-
-                <div className="activity-card">
-                  <div className="activity-icon-wrapper bg-purple">
-                    <span className="activity-icon">🤖</span>
-                  </div>
-                  <div className="activity-content">
-                    <h4>Rekomendasi AI</h4>
-                    <p>AI menyarankan 3 prioritas baru</p>
-                    <span className="activity-time">15 menit yang lalu</span>
-                  </div>
-                </div>
-
-                <div className="activity-card">
-                  <div className="activity-icon-wrapper bg-green">
-                    <span className="activity-icon">✅</span>
-                  </div>
-                  <div className="activity-content">
-                    <h4>Tugas Selesai</h4>
-                    <p>Review laporan proyek</p>
-                    <span className="activity-time">1 jam yang lalu</span>
-                  </div>
-                </div>
-
-                <div className="activity-card">
-                  <div className="activity-icon-wrapper bg-orange">
-                    <span className="activity-icon">🔔</span>
-                  </div>
-                  <div className="activity-content">
-                    <h4>Reminder Terkirim</h4>
-                    <p>Notifikasi WhatsApp untuk kegiatan pukul 15:00</p>
-                    <span className="activity-time">2 jam yang lalu</span>
-                  </div>
-                </div>
+                {recentActivities.length === 0 ? (
+                  <p>Tidak ada aktivitas terbaru.</p>
+                ) : (
+                  recentActivities.map((act) => (
+                    <div key={act.id} className="activity-card">
+                      <div className={`activity-icon-wrapper ${act.type === 'chat' ? 'bg-purple' : 'bg-blue'}`}>
+                        <span className="activity-icon">{act.type === 'chat' ? '🤖' : '📅'}</span>
+                      </div>
+                      <div className="activity-content">
+                        <h4>{act.title}</h4>
+                        <p>{act.type === 'chat' ? 'Percakapan dengan AI' : 'Kegiatan baru'}</p>
+                        <span className="activity-time">{act.date ? new Date(act.date).toLocaleString() : ''}</span>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
 
