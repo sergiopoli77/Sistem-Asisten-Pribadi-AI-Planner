@@ -459,16 +459,7 @@ const Profile = () => {
                 </label>
               </div>
 
-              <div className="setting-item">
-                <div className="setting-info">
-                  <h4>🌙 Mode Gelap</h4>
-                  <p>Tampilan yang nyaman untuk mata</p>
-                </div>
-                <label className="toggle-switch">
-                  <input type="checkbox" />
-                  <span className="toggle-slider"></span>
-                </label>
-              </div>
+              {/* Mode Gelap removed per user request */}
 
               <div className="setting-item">
                 <div className="setting-info">
