@@ -173,6 +173,10 @@ const Login = ({ onLogin }) => {
           <div className="register-link">
             Belum punya akun? <a href="/signup">Daftar di sini →</a>
           </div>
+          {/* Forgot password link */}
+          <div className="forgot-link" style={{ marginTop: '8px' }}>
+            <a href="/forgot">Lupa password?</a>
+          </div>
         </form>
 
         {/* Footer */}

@@ -3,6 +3,7 @@ import './App.css';
 import Login from './pages/login';
 import Dashboard from './pages/dashboard';
 import Signup from './pages/signup';
+import ForgotPassword from './pages/ForgotPassword';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -23,9 +24,15 @@ function App() {
 
   // jika user belum login, tampilkan login
   if (!user) {
-    // Simple pathname-based routing: /signup shows signup page, otherwise show login
-    if (typeof window !== 'undefined' && window.location.pathname === '/signup') {
-      return <Signup onRegistered={() => { window.location.href = '/'; }} />;
+    // Simple pathname-based routing for public pages
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname;
+      if (path === '/signup') {
+        return <Signup onRegistered={() => { window.location.href = '/'; }} />;
+      }
+      if (path === '/forgot' || path === '/forgot-password' || path === '/ganti-password') {
+        return <ForgotPassword />;
+      }
     }
 
     return <Login onLogin={setUser} />;
