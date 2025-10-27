@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { getDatabase, ref, onValue, update } from "firebase/database";
+import { getDatabase, ref, onValue, update, remove } from "firebase/database";
 import "../assets/Profile.css";
 
 const Profile = () => {
@@ -26,9 +26,15 @@ const Profile = () => {
     totalChats: 0,
     memberSince: "",
   });
+  const [deleting, setDeleting] = useState(false);
+  const [logoutLoading, setLogoutLoading] = useState(false);
 
   const db = getDatabase();
 
+  
+
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const username = localStorage.getItem("username");
     if (!username) {
@@ -62,15 +68,7 @@ const Profile = () => {
       setLoading(false);
     });
 
-    // Load statistics
-    loadUserStats(username);
-
-    return () => unsubscribe();
-  }, [db]);
-
-  // Load user statistics
-  const loadUserStats = (username) => {
-    // Count schedules
+    // Load statistics (schedules & chats counts)
     const schedulesRef = ref(db, `schedules/${username}`);
     onValue(schedulesRef, (snapshot) => {
       const data = snapshot.val();
@@ -78,16 +76,15 @@ const Profile = () => {
       setStats((prev) => ({ ...prev, totalSchedules: count }));
     });
 
-    // Count chats
     const chatsRef = ref(db, `chats/${username}`);
     onValue(chatsRef, (snapshot) => {
       const data = snapshot.val();
       const count = data ? Object.keys(data).length : 0;
       setStats((prev) => ({ ...prev, totalChats: count }));
     });
-  };
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => unsubscribe();
+  }, [db]);
 
   // Check for changes
   useEffect(() => {
@@ -144,20 +141,64 @@ const Profile = () => {
     setHasChanges(false);
   };
 
-  const handleDeleteAccount = () => {
+  const handleLogout = () => {
+    setLogoutLoading(true);
+    // small delay for spinner animation
+    setTimeout(() => {
+      localStorage.removeItem("username");
+      window.location.href = "/login";
+    }, 600);
+  };
+
+  const handleDeleteAccount = async () => {
     const confirmed = window.confirm(
       "⚠️ PERINGATAN!\n\nMenghapus akun akan menghapus semua data Anda secara permanen termasuk:\n• Semua jadwal\n• Riwayat chat AI\n• Informasi profil\n\nTindakan ini TIDAK DAPAT dibatalkan!\n\nApakah Anda yakin ingin melanjutkan?"
     );
 
-    if (confirmed) {
-      const doubleConfirm = window.confirm(
-        "Konfirmasi sekali lagi: Apakah Anda benar-benar yakin ingin menghapus akun?"
-      );
+    if (!confirmed) return;
 
-      if (doubleConfirm) {
-        alert("🚧 Fitur hapus akun akan segera tersedia. Silakan hubungi admin untuk bantuan.");
-        // TODO: Implement delete account logic
+    const doubleConfirm = window.confirm(
+      "Konfirmasi sekali lagi: Apakah Anda benar-benar yakin ingin menghapus akun?"
+    );
+
+    if (!doubleConfirm) return;
+
+    if (!currentUser) {
+      alert("Tidak dapat menemukan user saat ini. Silakan login terlebih dahulu.");
+      return;
+    }
+
+    try {
+      setDeleting(true);
+
+      const paths = [
+        `users/${currentUser}`,
+        `schedules/${currentUser}`,
+        `chats/${currentUser}`,
+        `chatHistory/${currentUser}`,
+      ];
+
+      const ops = paths.map((p) => remove(ref(db, p)));
+
+      const results = await Promise.allSettled(ops);
+
+      const rejected = results.filter((r) => r.status === "rejected");
+
+      if (rejected.length > 0) {
+        console.error("Beberapa penghapusan gagal:", rejected);
+        alert("Terjadi kesalahan saat menghapus beberapa data. Silakan coba lagi atau hubungi admin.");
+        setDeleting(false);
+        return;
       }
+
+      // Success - clear session and redirect
+      localStorage.removeItem("username");
+      alert("Akun dan semua data berhasil dihapus.");
+      window.location.href = "/login";
+    } catch (err) {
+      console.error("Gagal menghapus akun:", err);
+      alert("Gagal menghapus akun. Silakan coba lagi nanti.");
+      setDeleting(false);
     }
   };
 
@@ -172,16 +213,31 @@ const Profile = () => {
 
   return (
     <div className="profile-container">
+      {(deleting || logoutLoading) && (
+        <div className="spinner-overlay">
+          <div className="spinner-box">
+            <div className="loading-spinner"></div>
+            <p>{deleting ? "Menghapus akun..." : "Keluar..."}</p>
+          </div>
+        </div>
+      )}
       {/* Profile Header */}
       <div className="profile-header">
         <div className="profile-header-content">
           <div className="profile-avatar-section">
-            <div className="profile-avatar-wrapper">
+              <div className="profile-avatar-wrapper">
               <div className="profile-avatar">
                 {profile.nama?.charAt(0)?.toUpperCase() || "?"}
               </div>
               <button className="avatar-edit-btn" title="Ubah foto profil">
                 📷
+              </button>
+              <button
+                className="avatar-logout-btn"
+                title="Keluar"
+                onClick={handleLogout}
+              >
+                🚪
               </button>
             </div>
             <div className="profile-info">
