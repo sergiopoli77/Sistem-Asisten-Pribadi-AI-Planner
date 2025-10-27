@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Brain, Mail, Lock, Sparkles, ArrowRight } from 'lucide-react';
 import { db } from '../config/firebase';
 import { ref, get } from 'firebase/database';
-import '../assets/login.css';
+import '../assets/Login.css';
 
 const Login = ({ onLogin }) => {
   const [username, setUsername] = useState('');
