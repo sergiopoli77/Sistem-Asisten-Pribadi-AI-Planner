@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { normalizePhone } from '../utils/phone';
 import '../assets/GantiPassword.css';
 
 function LupaPassword() {
@@ -11,27 +12,40 @@ function LupaPassword() {
     e.preventDefault();
     setLoading(true);
     setNotif('');
+
     try {
-      const backendUrl =
-        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-          ? 'http://localhost:3001/api/operator/reset-password'
-          : window.location.protocol + '//' + window.location.hostname + ':3001/api/operator/reset-password';
-      const res = await fetch(backendUrl, {
+      const raw = (account || '').trim();
+      const combined = raw.startsWith('+') ? raw.slice(1) : raw;
+      const norm = normalizePhone(combined);
+      console.log('[ForgotPassword] requesting server reset for phone=', norm);
+
+      const serverUrl = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+        ? 'http://localhost:4000/api/operator/reset-password'
+        : window.location.protocol + '//' + window.location.hostname + '/api/operator/reset-password';
+
+      const resp = await fetch(serverUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nomor: account })
+        body: JSON.stringify({ nomor: norm }),
       });
-      const result = await res.json();
-      if (result.success) {
-        setNotif('Password berhasil direset! Silakan cek WhatsApp Anda.');
-      } else {
-        setNotif('Gagal reset password: ' + (result.message || '')); 
+
+      const json = await resp.json();
+      if (!resp.ok) {
+        console.warn('[ForgotPassword] server responded error', json);
+        setNotif('User dengan nomor tersebut tidak ditemukan.');
+        setLoading(false);
+        setTimeout(() => setNotif(''), 3000);
+        return;
       }
+
+      setNotif('Password berhasil direset! Silakan cek WhatsApp Anda.');
     } catch (err) {
+      console.error('Reset error:', err);
       setNotif('Gagal reset password!');
     }
+
     setLoading(false);
-    setTimeout(() => setNotif(''), 2500);
+    setTimeout(() => setNotif(''), 3000);
   };
 
   return (
@@ -46,10 +60,10 @@ function LupaPassword() {
           <a href="/" style={{ color: '#22314a', textDecoration: 'none', fontWeight: 500, fontSize: 15 }}>&larr; Back to log in</a>
         </div>
         <h2 style={{ fontWeight: 700, fontSize: 32, marginBottom: 8 }}>Forgot your password?</h2>
-        <div style={{ color: '#555', fontSize: 17, marginBottom: 32 }}>No need to panic. You will get a new one</div>
+        <div style={{ color: '#555', fontSize: 17, marginBottom: 32 }}>Masukkan nomor WhatsApp yang terdaftar. Kami akan mengirimkan password baru (6 digit) melalui WhatsApp.</div>
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: 18 }}>
-            <label style={{ fontWeight: 500, fontSize: 16, marginBottom: 6, display: 'block' }}>Your Account</label>
+            <label style={{ fontWeight: 500, fontSize: 16, marginBottom: 6, display: 'block' }}>Nomor WhatsApp (contoh: 628xxxxxxxxxx)</label>
             <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #e0e0e0', borderRadius: 8, padding: '8px 12px', background: '#fafbfc' }}>
               <span style={{ marginRight: 8, color: '#888' }}>
                 <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M15.75 7.5a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.5 19.25v-.5A4.75 4.75 0 019.25 14h5.5a4.75 4.75 0 014.75 4.75v.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -57,7 +71,7 @@ function LupaPassword() {
               <input
                 type="text"
                 value={account}
-                onChange={e => setAccount(e.target.value)}
+                onChange={e => setAccount(e.target.value.replace(/[^0-9+]/g, ''))}
                 placeholder="628xxxxxxxxxx"
                 style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: 16, flex: 1 }}
                 required
@@ -72,7 +86,6 @@ function LupaPassword() {
               </span>
               <select value={country} onChange={e => setCountry(e.target.value)} style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: 16, flex: 1 }}>
                 <option value="62">Indonesia (+62)</option>
-                {/* Tambahkan negara lain jika perlu */}
               </select>
             </div>
           </div>
@@ -90,3 +103,5 @@ function LupaPassword() {
 }
 
 export default LupaPassword;
+
+//tes

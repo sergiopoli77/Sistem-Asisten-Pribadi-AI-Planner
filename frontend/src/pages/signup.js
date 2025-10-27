@@ -163,7 +163,7 @@ const Signup = () => {
               <Phone className={`input-icon ${focusedField === 'phone' ? 'active' : ''}`} />
               <input
                 type="tel"
-                placeholder="08123456789"
+                placeholder="628xxxxxxxxxx"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value.replace(/[^0-9]/g, ''))}
                 onFocus={() => setFocusedField('phone')}
