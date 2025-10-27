@@ -58,6 +58,3 @@ router.get('/ping', (req, res) => {
 
 module.exports = router;
 
-//testing ai route
-//testes
-//12
