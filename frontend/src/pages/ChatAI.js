@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import "../assets/chatai.css";
 import { db } from "../config/firebase";
-import { ref, push, set, update } from "firebase/database";
+import { ref, push, set, update, remove } from "firebase/database";
 
 const ChatAI = ({ initialChat }) => {
   const [input, setInput] = useState("");
@@ -179,17 +179,14 @@ const ChatAI = ({ initialChat }) => {
       const aiText = data?.ai?.text || extractTextFromAiResponse(data) || JSON.stringify(data.ai || data);
       const parsedSchedules = data?.ai?.parsedSchedules?.length ? data.ai.parsedSchedules : parseSchedulesFromText(aiText);
 
-      // Decide whether to auto-add schedules: if parsed schedules exist and the
-      // user's prompt explicitly asked for a study schedule (e.g. "jadwal belajar").
-      const promptLower = prompt.toLowerCase();
-      const requestedStudySchedule = /\bjadwal belajar\b|\bbuat jadwal belajar\b/i.test(promptLower);
+  // No auto-add: we always keep manual add option when parsedSchedules exist.
 
       const aiMessage = {
         sender: 'ai',
         text: aiText,
         timestamp: new Date().toISOString(),
-        // keep actions for manual add only when we did NOT auto-add
-        actions: parsedSchedules.length && !requestedStudySchedule ? ['Tambahkan ke Jadwal'] : [],
+        // always offer manual add button when parsed schedules exist
+        actions: parsedSchedules.length ? ['Tambahkan ke Jadwal'] : [],
         parsedSchedules,
       };
 
@@ -200,15 +197,8 @@ const ChatAI = ({ initialChat }) => {
       // Save chat to Firebase
       saveChatToFirebase(finalMessages);
 
-      // If it's a study schedule request and we have parsed schedules, auto-save them
-      if (requestedStudySchedule && parsedSchedules.length) {
-        saveSchedulesToFirebase(parsedSchedules);
-        // update the last AI message to include confirmation text
-        const updatedAiText = aiMessage.text + '\n\n✅ Jadwal sudah otomatis ditambahkan ke Jadwal Anda.';
-        const updatedMessages = [...newMessages, { ...aiMessage, text: updatedAiText, actions: [] }];
-        setMessages(updatedMessages);
-        saveChatToFirebase(updatedMessages);
-      }
+      // NOTE: we intentionally DO NOT auto-save schedules anymore.
+      // The AI will always show a 'Tambahkan ke Jadwal' button when parsedSchedules exist.
     } catch (err) {
         console.warn('AI backend error:', err);
         const errorText = '⚠️ Maaf, layanan AI sedang bermasalah. Silakan coba lagi beberapa saat.';
@@ -321,22 +311,34 @@ const ChatAI = ({ initialChat }) => {
           <div className="stat-item stat-action">
             <button
               className="btn-clear-chat"
-              onClick={() => {
-                if (!messages || messages.length === 0) return;
-                const ok = window.confirm('Hapus percakapan saat ini? Ini akan mengosongkan chat pada tampilan.');
-                if (!ok) return;
-                // reset chat locally
-                const newSessionId = `session_${Date.now()}`;
-                setSessionId(newSessionId);
-                setCurrentChatId(null);
-                setMessages([
-                  {
-                    sender: 'ai',
-                    text: '👋 Halo! Saya AI Planner Assistant. Saya siap membantu Anda mengatur jadwal dan menjawab pertanyaan Anda.',
-                    timestamp: new Date().toISOString(),
-                  },
-                ]);
-              }}
+              onClick={async () => {
+                  if (!messages || messages.length === 0) return;
+                  const ok = window.confirm('Hapus percakapan saat ini? Ini akan mengosongkan chat pada tampilan.');
+                  if (!ok) return;
+
+                  // If this chat was persisted remotely, remove it so it doesn't reappear
+                  if (currentChatId) {
+                    try {
+                      const existingRef = ref(db, `chats/${username}/${currentChatId}`);
+                      await remove(existingRef);
+                    } catch (e) {
+                      console.warn('Failed to remove existing chat from Firebase:', e);
+                      // proceed with local reset even if remote delete fails
+                    }
+                  }
+
+                  // reset chat locally
+                  const newSessionId = `session_${Date.now()}`;
+                  setSessionId(newSessionId);
+                  setCurrentChatId(null);
+                  setMessages([
+                    {
+                      sender: 'ai',
+                      text: '👋 Halo! Saya AI Planner Assistant. Saya siap membantu Anda mengatur jadwal dan menjawab pertanyaan Anda.',
+                      timestamp: new Date().toISOString(),
+                    },
+                  ]);
+                }}
               title="Clear conversation"
             >
               Clear
@@ -365,8 +367,8 @@ const ChatAI = ({ initialChat }) => {
 
       {/* Chat Box */}
       <div className="chat-box" ref={chatBoxRef}>
-        {messages.map((msg, index) => (
-          <div key={index} className={`chat-message ${msg.sender}`}>
+        {messages.map((msg, msgIndex) => (
+          <div key={msgIndex} className={`chat-message ${msg.sender}`}>
             {msg.sender === "ai" && (
               <div className="message-avatar">
                 <div className="bot-icon">🤖</div>
@@ -386,11 +388,11 @@ const ChatAI = ({ initialChat }) => {
 
                 {msg.actions && (
                   <div className="message-actions">
-                    {msg.actions.map((action, i) => {
+                    {msg.actions.map((action, actIndex) => {
                       if (action === 'Tambahkan ke Jadwal') {
                         return (
                           <button
-                            key={i}
+                            key={actIndex}
                             className="action-btn"
                             onClick={() => {
                               const parsed = msg.parsedSchedules || [];
@@ -398,7 +400,21 @@ const ChatAI = ({ initialChat }) => {
                                 alert('Tidak ada jadwal terdeteksi untuk ditambahkan.');
                                 return;
                               }
+                              // save schedules to Firebase
                               saveSchedulesToFirebase(parsed);
+
+                              // update the message to remove the action and add confirmation
+                              setMessages((prev) => {
+                                const cp = [...prev];
+                                const target = { ...(cp[msgIndex] || {}) };
+                                target.actions = [];
+                                target.text = (target.text || '') + '\n\n✅ Jadwal berhasil ditambahkan. Cek menu Jadwal.';
+                                cp[msgIndex] = target;
+                                // persist updated chat
+                                try { saveChatToFirebase(cp); } catch (e) { /* ignore */ }
+                                return cp;
+                              });
+
                               alert('✅ Jadwal berhasil ditambahkan. Cek menu Jadwal.');
                             }}
                           >
@@ -408,7 +424,7 @@ const ChatAI = ({ initialChat }) => {
                       }
 
                       return (
-                        <button key={i} className="action-btn">
+                        <button key={actIndex} className="action-btn">
                           {action}
                         </button>
                       );
