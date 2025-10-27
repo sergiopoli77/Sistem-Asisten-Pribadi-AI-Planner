@@ -63,7 +63,6 @@ function LupaPassword() {
         <div style={{ color: '#555', fontSize: 17, marginBottom: 32 }}>Masukkan nomor WhatsApp yang terdaftar. Kami akan mengirimkan password baru (6 digit) melalui WhatsApp.</div>
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: 18 }}>
-            <label style={{ fontWeight: 500, fontSize: 16, marginBottom: 6, display: 'block' }}>Nomor WhatsApp (contoh: 628xxxxxxxxxx)</label>
             <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #e0e0e0', borderRadius: 8, padding: '8px 12px', background: '#fafbfc' }}>
               <span style={{ marginRight: 8, color: '#888' }}>
                 <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M15.75 7.5a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.5 19.25v-.5A4.75 4.75 0 019.25 14h5.5a4.75 4.75 0 014.75 4.75v.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
