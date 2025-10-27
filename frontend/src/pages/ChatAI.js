@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import "../assets/chatai.css";
 import { db } from "../config/firebase";
 import { ref, push, set, update, remove } from "firebase/database";
+import ConfirmModal from "../components/ConfirmModal";
 
 const ChatAI = ({ initialChat }) => {
   const [input, setInput] = useState("");
@@ -45,6 +46,8 @@ const ChatAI = ({ initialChat }) => {
 
   // Firebase reference untuk chat user
   const chatRef = ref(db, `chats/${username}`);
+
+  const [showConfirmClear, setShowConfirmClear] = useState(false);
 
   // Simpan chat ke Firebase
   const saveChatToFirebase = async (newMessages) => {
@@ -92,7 +95,13 @@ const ChatAI = ({ initialChat }) => {
     }
 
     const newChatRef = push(chatRef);
-    set(newChatRef, chatData);
+    await set(newChatRef, chatData);
+    // save the generated key so subsequent Clear can remove the persisted chat
+    try {
+      if (newChatRef && newChatRef.key) setCurrentChatId(newChatRef.key);
+    } catch (e) {
+      // ignore
+    }
   };
 
   // helper: try extract text from backend AI response
@@ -218,6 +227,36 @@ const ChatAI = ({ initialChat }) => {
     }
   };
 
+  // Confirmed clear action
+  const confirmClear = async () => {
+    setShowConfirmClear(false);
+
+    // If this chat was persisted remotely, remove it so it doesn't reappear
+    if (currentChatId) {
+      try {
+        const existingRef = ref(db, `chats/${username}/${currentChatId}`);
+        await remove(existingRef);
+        // also remove any history pointer if present
+        try { await remove(ref(db, `chatHistory/${username}/${currentChatId}`)); } catch (e) { /* ignore */ }
+      } catch (e) {
+        console.warn('Failed to remove existing chat from Firebase:', e);
+        // proceed with local reset even if remote delete fails
+      }
+    }
+
+    // reset chat locally
+    const newSessionId = `session_${Date.now()}`;
+    setSessionId(newSessionId);
+    setCurrentChatId(null);
+    setMessages([
+      {
+        sender: 'ai',
+        text: '👋 Halo! Saya AI Planner Assistant. Saya siap membantu Anda mengatur jadwal dan menjawab pertanyaan Anda.',
+        timestamp: new Date().toISOString(),
+      },
+    ]);
+  };
+
   // Generate AI Response dengan konteks lebih baik
   // NOTE: generateAiResponse removed - using pure AI backend. Local fallback responses were removed.
 
@@ -308,42 +347,18 @@ const ChatAI = ({ initialChat }) => {
             <span className="stat-label">Pesan</span>
           </div>
           {/* New Chat button removed per request */}
-          <div className="stat-item stat-action">
-            <button
-              className="btn-clear-chat"
-              onClick={async () => {
-                  if (!messages || messages.length === 0) return;
-                  const ok = window.confirm('Hapus percakapan saat ini? Ini akan mengosongkan chat pada tampilan.');
-                  if (!ok) return;
-
-                  // If this chat was persisted remotely, remove it so it doesn't reappear
-                  if (currentChatId) {
-                    try {
-                      const existingRef = ref(db, `chats/${username}/${currentChatId}`);
-                      await remove(existingRef);
-                    } catch (e) {
-                      console.warn('Failed to remove existing chat from Firebase:', e);
-                      // proceed with local reset even if remote delete fails
-                    }
-                  }
-
-                  // reset chat locally
-                  const newSessionId = `session_${Date.now()}`;
-                  setSessionId(newSessionId);
-                  setCurrentChatId(null);
-                  setMessages([
-                    {
-                      sender: 'ai',
-                      text: '👋 Halo! Saya AI Planner Assistant. Saya siap membantu Anda mengatur jadwal dan menjawab pertanyaan Anda.',
-                      timestamp: new Date().toISOString(),
-                    },
-                  ]);
-                }}
-              title="Clear conversation"
-            >
-              Clear
-            </button>
-          </div>
+              <div className="stat-item stat-action">
+                <button
+                  className="btn-clear-chat"
+                  onClick={() => {
+                    if (!messages || messages.length === 0) return;
+                    setShowConfirmClear(true);
+                  }}
+                  title="Clear conversation"
+                >
+                  Clear
+                </button>
+              </div>
         </div>
       </div>
 
@@ -461,6 +476,17 @@ const ChatAI = ({ initialChat }) => {
             </div>
           </div>
         )}
+
+        {/* Confirm modal for Clear */}
+        <ConfirmModal
+          open={showConfirmClear}
+          title="Hapus Percakapan"
+          message={`Hapus percakapan saat ini?\nIni akan mengosongkan chat pada tampilan.`}
+          confirmLabel="Hapus"
+          cancelLabel="Batal"
+          onConfirm={confirmClear}
+          onCancel={() => setShowConfirmClear(false)}
+        />
       </div>
 
       {/* Input Section */}

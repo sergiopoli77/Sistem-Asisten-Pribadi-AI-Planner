@@ -10,6 +10,7 @@ const Login = ({ onLogin }) => {
   const [focusedField, setFocusedField] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const handleSubmit = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
@@ -69,11 +70,12 @@ const Login = ({ onLogin }) => {
           console.warn('Gagal menyimpan ke localStorage:', e);
         }
 
-        // kirim hasil login ke parent (App.js)
-        if (onLogin) onLogin({ username: displayName, role: userRole, uid });
-        alert(`Login berhasil! Selamat datang, ${displayName}.`);
-        setLoading(false);
-        return;
+  // kirim hasil login ke parent (App.js)
+  if (onLogin) onLogin({ username: displayName, role: userRole, uid });
+  // tampilkan modal sukses (ganti alert)
+  setShowSuccessModal(true);
+  setLoading(false);
+  return;
       }
 
       setError('Password salah.');
@@ -178,6 +180,27 @@ const Login = ({ onLogin }) => {
             <a href="/forgot">Lupa password?</a>
           </div>
         </form>
+
+          {/* Success modal (centered) */}
+          {showSuccessModal && (
+            <div className="modal-overlay">
+              <div className="modal-card">
+                <h3>Login Berhasil 🎉</h3>
+                <p>Selamat datang, {localStorage.getItem('displayName') || username}.</p>
+                <div className="modal-actions">
+                  <button
+                    className="btn-save"
+                    onClick={() => {
+                      setShowSuccessModal(false);
+                      window.location.href = '/';
+                    }}
+                  >
+                    Lanjut ke Dashboard
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
         {/* Footer */}
         <div className="login-footer">

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { getDatabase, ref, onValue, push, set, remove, update } from "firebase/database";
 import "../assets/Jadwal.css";
+import ConfirmModal from "../components/ConfirmModal";
 
 const Jadwal = () => {
   const [schedules, setSchedules] = useState([]);
@@ -10,6 +11,7 @@ const Jadwal = () => {
   const [currentUser, setCurrentUser] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState(null);
+  const [showConfirmDeleteScheduleId, setShowConfirmDeleteScheduleId] = useState(null);
   const [formData, setFormData] = useState({
     kegiatan: "",
     tanggal: "",
@@ -136,9 +138,16 @@ const Jadwal = () => {
 
   // Hapus jadwal
   const handleDeleteSchedule = (scheduleId) => {
-    if (window.confirm("Yakin ingin menghapus jadwal ini?")) {
-      remove(ref(db, `schedules/${currentUser}/${scheduleId}`));
+    setShowConfirmDeleteScheduleId(scheduleId);
+  };
+
+  const confirmDeleteSchedule = (id) => {
+    try {
+      remove(ref(db, `schedules/${currentUser}/${id}`));
+    } catch (err) {
+      console.warn('Failed to remove schedule:', err);
     }
+    setShowConfirmDeleteScheduleId(null);
   };
 
   // Toggle status
@@ -482,6 +491,18 @@ const Jadwal = () => {
             </form>
           </div>
         </div>
+      )}
+      {/* Confirm Delete Schedule Modal */}
+      {showConfirmDeleteScheduleId && (
+        <ConfirmModal
+          open={true}
+          title="Hapus Jadwal"
+          message="Yakin ingin menghapus jadwal ini? Tindakan ini tidak dapat dibatalkan."
+          confirmLabel="Hapus"
+          cancelLabel="Batal"
+          onConfirm={() => confirmDeleteSchedule(showConfirmDeleteScheduleId)}
+          onCancel={() => setShowConfirmDeleteScheduleId(null)}
+        />
       )}
     </div>
   );

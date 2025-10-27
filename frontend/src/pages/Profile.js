@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { getDatabase, ref, onValue, update, remove } from "firebase/database";
 import "../assets/Profile.css";
+import ConfirmModal from "../components/ConfirmModal";
 
 const Profile = () => {
   const [profile, setProfile] = useState({
@@ -28,6 +29,9 @@ const Profile = () => {
   });
   const [deleting, setDeleting] = useState(false);
   const [logoutLoading, setLogoutLoading] = useState(false);
+  const [showConfirmDelete, setShowConfirmDelete] = useState(false);
+  const [showConfirmDeleteFinal, setShowConfirmDeleteFinal] = useState(false);
+  const [infoModal, setInfoModal] = useState(null);
 
   const db = getDatabase();
 
@@ -38,8 +42,16 @@ const Profile = () => {
   useEffect(() => {
     const username = localStorage.getItem("username");
     if (!username) {
-      alert("Kamu belum login!");
-      window.location.href = "/login";
+      setInfoModal({
+        title: "Belum Login",
+        message: "Kamu belum login!",
+        confirmLabel: "Masuk",
+        cancelLabel: "Tutup",
+        onConfirm: () => {
+          setInfoModal(null);
+          window.location.href = "/login";
+        },
+      });
       return;
     }
     setCurrentUser(username);
@@ -102,19 +114,19 @@ const Profile = () => {
 
     // Validation
     if (!profile.nama?.trim()) {
-      alert("⚠️ Nama lengkap harus diisi!");
+      setInfoModal({ title: "Perhatian", message: "⚠️ Nama lengkap harus diisi!" });
       return;
     }
 
     if (!profile.email?.trim()) {
-      alert("⚠️ Email harus diisi!");
+      setInfoModal({ title: "Perhatian", message: "⚠️ Email harus diisi!" });
       return;
     }
 
     // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(profile.email)) {
-      alert("⚠️ Format email tidak valid!");
+      setInfoModal({ title: "Perhatian", message: "⚠️ Format email tidak valid!" });
       return;
     }
 
@@ -127,10 +139,10 @@ const Profile = () => {
 
       await update(ref(db, `users/${currentUser}`), updateData);
       setOriginalProfile(updateData);
-      alert("✅ Profil berhasil diperbarui!");
+      setInfoModal({ title: "Sukses", message: "✅ Profil berhasil diperbarui!" });
     } catch (error) {
       console.error(error);
-      alert("❌ Gagal menyimpan profil!");
+      setInfoModal({ title: "Gagal", message: "❌ Gagal menyimpan profil!" });
     } finally {
       setSaving(false);
     }
@@ -151,20 +163,26 @@ const Profile = () => {
   };
 
   const handleDeleteAccount = async () => {
-    const confirmed = window.confirm(
-      "⚠️ PERINGATAN!\n\nMenghapus akun akan menghapus semua data Anda secara permanen termasuk:\n• Semua jadwal\n• Riwayat chat AI\n• Informasi profil\n\nTindakan ini TIDAK DAPAT dibatalkan!\n\nApakah Anda yakin ingin melanjutkan?"
-    );
+    // Show first confirmation modal (we handle double confirmation with two modals)
+    setShowConfirmDelete(true);
+  };
 
-    if (!confirmed) return;
+  const handleConfirmDeleteFirst = () => {
+    setShowConfirmDelete(false);
+    setShowConfirmDeleteFinal(true);
+  };
 
-    const doubleConfirm = window.confirm(
-      "Konfirmasi sekali lagi: Apakah Anda benar-benar yakin ingin menghapus akun?"
-    );
-
-    if (!doubleConfirm) return;
-
+  const handleConfirmDeleteFinal = async () => {
+    setShowConfirmDeleteFinal(false);
     if (!currentUser) {
-      alert("Tidak dapat menemukan user saat ini. Silakan login terlebih dahulu.");
+      setInfoModal({
+        title: "Error",
+        message: "Tidak dapat menemukan user saat ini. Silakan login terlebih dahulu.",
+        onConfirm: () => {
+          setInfoModal(null);
+          window.location.href = "/login";
+        },
+      });
       return;
     }
 
@@ -186,18 +204,24 @@ const Profile = () => {
 
       if (rejected.length > 0) {
         console.error("Beberapa penghapusan gagal:", rejected);
-        alert("Terjadi kesalahan saat menghapus beberapa data. Silakan coba lagi atau hubungi admin.");
+        setInfoModal({ title: "Gagal", message: "Terjadi kesalahan saat menghapus beberapa data. Silakan coba lagi atau hubungi admin." });
         setDeleting(false);
         return;
       }
 
       // Success - clear session and redirect
       localStorage.removeItem("username");
-      alert("Akun dan semua data berhasil dihapus.");
-      window.location.href = "/login";
+      setInfoModal({
+        title: "Sukses",
+        message: "Akun dan semua data berhasil dihapus.",
+        onConfirm: () => {
+          setInfoModal(null);
+          window.location.href = "/login";
+        },
+      });
     } catch (err) {
       console.error("Gagal menghapus akun:", err);
-      alert("Gagal menghapus akun. Silakan coba lagi nanti.");
+      setInfoModal({ title: "Gagal", message: "Gagal menghapus akun. Silakan coba lagi nanti." });
       setDeleting(false);
     }
   };
@@ -213,6 +237,49 @@ const Profile = () => {
 
   return (
     <div className="profile-container">
+      {/* Confirm modals for delete account */}
+      <ConfirmModal
+        open={showConfirmDelete}
+        title="Hapus Akun"
+        message={`⚠️ PERINGATAN!\n\nMenghapus akun akan menghapus semua data Anda secara permanen termasuk:\n• Semua jadwal\n• Riwayat chat AI\n• Informasi profil\n\nTindakan ini TIDAK DAPAT dibatalkan!\n\nApakah Anda yakin ingin melanjutkan?`}
+        confirmLabel="Lanjut"
+        cancelLabel="Batal"
+        onConfirm={handleConfirmDeleteFirst}
+        onCancel={() => setShowConfirmDelete(false)}
+      />
+      <ConfirmModal
+        open={showConfirmDeleteFinal}
+        title="Konfirmasi Terakhir"
+        message={`Konfirmasi sekali lagi: Apakah Anda benar-benar ingin menghapus akun?`}
+        confirmLabel="Hapus Akun"
+        cancelLabel="Batal"
+        onConfirm={handleConfirmDeleteFinal}
+        onCancel={() => setShowConfirmDeleteFinal(false)}
+      />
+      {/* Generic info/result modal (used instead of alert()) */}
+      {infoModal && (
+        <ConfirmModal
+          open={true}
+          title={infoModal.title}
+          message={infoModal.message}
+          confirmLabel={infoModal.confirmLabel || "OK"}
+          cancelLabel={infoModal.cancelLabel || "Tutup"}
+          onConfirm={() => {
+            try {
+              if (infoModal.onConfirm) infoModal.onConfirm();
+            } finally {
+              setInfoModal(null);
+            }
+          }}
+          onCancel={() => {
+            try {
+              if (infoModal.onCancel) infoModal.onCancel();
+            } finally {
+              setInfoModal(null);
+            }
+          }}
+        />
+      )}
       {(deleting || logoutLoading) && (
         <div className="spinner-overlay">
           <div className="spinner-box">
@@ -441,7 +508,7 @@ const Profile = () => {
                         const oldPass = originalProfile.password || "";
                         if (newPass && newPass !== oldPass) {
                           if (newPass.length < 6) {
-                            alert("⚠️ Password minimal 6 karakter.");
+                            setInfoModal({ title: "Perhatian", message: "⚠️ Password minimal 6 karakter." });
                             return;
                           }
                           setSaving(true);
@@ -450,11 +517,11 @@ const Profile = () => {
                             updatedAt: new Date().toISOString(),
                           });
                           setOriginalProfile((prev) => ({ ...prev, password: newPass }));
-                          alert("✅ Password berhasil diperbarui!");
+                          setInfoModal({ title: "Sukses", message: "✅ Password berhasil diperbarui!" });
                         }
                       } catch (err) {
                         console.error("Gagal update password:", err);
-                        alert("❌ Gagal memperbarui password. Coba lagi.");
+                        setInfoModal({ title: "Gagal", message: "❌ Gagal memperbarui password. Coba lagi." });
                       } finally {
                         setSaving(false);
                       }

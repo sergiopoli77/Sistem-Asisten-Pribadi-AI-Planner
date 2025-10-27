@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { getDatabase, ref, onValue, remove, update } from "firebase/database";
 import "../assets/Riwayat.css";
+import ConfirmModal from "../components/ConfirmModal";
 
 const RiwayatChat = () => {
   const [chatList, setChatList] = useState([]);
@@ -12,6 +13,8 @@ const RiwayatChat = () => {
   const [editingChatId, setEditingChatId] = useState(null);
   const [editTitle, setEditTitle] = useState("");
   const chatViewRef = useRef(null);
+  const [showConfirmDeleteId, setShowConfirmDeleteId] = useState(null);
+  const [showConfirmDeleteAll, setShowConfirmDeleteAll] = useState(false);
 
   const db = getDatabase();
 
@@ -86,13 +89,22 @@ const RiwayatChat = () => {
   // Handle delete chat
   const handleDeleteChat = (id, e) => {
     if (e) e.stopPropagation();
+    setShowConfirmDeleteId(id);
+  };
 
-    if (window.confirm("Yakin ingin menghapus riwayat chat ini?")) {
+  const confirmDeleteChat = (id) => {
+    try {
       remove(ref(db, `chats/${currentUser}/${id}`));
-      if (selectedChat?.id === id) {
-        setSelectedChat(null);
-      }
+    } catch (err) {
+      console.warn('Failed removing chat node:', err);
     }
+    try {
+      remove(ref(db, `chatHistory/${currentUser}/${id}`));
+    } catch (err) {
+      // ignore
+    }
+    if (selectedChat?.id === id) setSelectedChat(null);
+    setShowConfirmDeleteId(null);
   };
 
   // Handle delete all chats
@@ -102,17 +114,29 @@ const RiwayatChat = () => {
       return;
     }
 
-    const confirmed = window.confirm(
-      `⚠️ PERINGATAN!\n\nAnda akan menghapus SEMUA riwayat chat (${chatList.length} percakapan).\n\nTindakan ini TIDAK DAPAT dibatalkan!\n\nLanjutkan?`
-    );
+    // show in-app confirmation modal instead of native confirm
+    setShowConfirmDeleteAll(true);
+  };
 
-    if (confirmed) {
+  const confirmDeleteAll = () => {
+    setShowConfirmDeleteAll(false);
+    // remove everything under chats and chatHistory for this user
+    try {
+      remove(ref(db, `chats/${currentUser}`));
+    } catch (err) {
+      console.warn('Failed to remove chats root:', err);
+      // fallback: remove one-by-one
       chatList.forEach((chat) => {
-        remove(ref(db, `chats/${currentUser}/${chat.id}`));
+        try { remove(ref(db, `chats/${currentUser}/${chat.id}`)); } catch (e) {}
       });
-      setSelectedChat(null);
-      alert("✅ Semua riwayat chat berhasil dihapus!");
     }
+    try {
+      remove(ref(db, `chatHistory/${currentUser}`));
+    } catch (err) {
+      console.warn('Failed to remove chatHistory root:', err);
+    }
+    setSelectedChat(null);
+    alert("✅ Semua riwayat chat berhasil dihapus!");
   };
 
   // Handle edit chat title
@@ -237,6 +261,25 @@ const RiwayatChat = () => {
 
   return (
     <div className="riwayat-container">
+      {/* Confirm modals */}
+      <ConfirmModal
+        open={!!showConfirmDeleteId}
+        title="Hapus Riwayat"
+        message={`Yakin ingin menghapus riwayat chat ini?`}
+        confirmLabel="Hapus"
+        cancelLabel="Batal"
+        onConfirm={() => confirmDeleteChat(showConfirmDeleteId)}
+        onCancel={() => setShowConfirmDeleteId(null)}
+      />
+      <ConfirmModal
+        open={showConfirmDeleteAll}
+        title="Hapus Semua Riwayat"
+        message={`⚠️ Anda akan menghapus SEMUA riwayat chat. Tindakan ini tidak dapat dibatalkan.`}
+        confirmLabel="Hapus Semua"
+        cancelLabel="Batal"
+        onConfirm={confirmDeleteAll}
+        onCancel={() => setShowConfirmDeleteAll(false)}
+      />
       {/* Sidebar - Chat List */}
       <div className="chat-sidebar">
         <div className="sidebar-header">
