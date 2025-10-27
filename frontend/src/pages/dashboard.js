@@ -145,7 +145,7 @@ const Dashboard = ({ user, onLogout }) => {
             <div className="welcome-section">
               <div className="welcome-card">
                 <div className="welcome-text">
-                  <h1>Yeremia Kembali, {user.username}! 👋</h1>
+                  <h1>Selamat Datang Kembali, {user.username}! 👋</h1>
                   <p>AI Planner siap membantu Anda mengatur jadwal dan meningkatkan produktivitas hari ini.</p>
                 </div>
                 <div className="welcome-actions">
