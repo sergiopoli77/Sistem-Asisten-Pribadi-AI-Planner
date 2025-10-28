@@ -5,7 +5,6 @@ require('dotenv').config();
 
 // Import router AI
 const aiRouter = require('./routes/ai');
-const notifyRouter = require('./routes/notify');
 const operatorRouter = require('./routes/operator');
 
 const app = express();
@@ -17,8 +16,6 @@ app.use(express.json());
 // Routes
 app.use('/api/ai', aiRouter);
 console.log('[DEBUG] /api/ai route registered');
-app.use('/api/notify', notifyRouter);
-console.log('[DEBUG] /api/notify route registered');
 app.use('/api/operator', operatorRouter);
 console.log('[DEBUG] /api/operator route registered');
 
